@@ -351,8 +351,8 @@ function settingsView() {
         <button class="btn-text" data-act="disconnect">연결 끊기</button>
       </div>`
     : `<form class="stack" data-connect>
-        <label class="field"><span class="t-cap muted">저장소</span><input name="repo" placeholder="계정/저장소" required autocapitalize="off" autocomplete="off" spellcheck="false"></label>
-        <label class="field"><span class="t-cap muted">토큰</span><input name="token" type="password" required autocomplete="off"></label>
+        <label class="field"><span class="t-cap muted">연결 링크 또는 토큰</span><input name="token" type="password" required autocomplete="off"></label>
+        <label class="field"><span class="t-cap muted">저장소</span><input name="repo" placeholder="토큰을 넣을 때만" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
         <button class="btn-primary" type="submit">연결</button>
       </form>`}
   </section>
@@ -550,7 +550,7 @@ document.addEventListener('submit', e => {
   e.preventDefault();
   const fd = new FormData(e.target);
   if (e.target.matches('[data-form]')) submitSheet(fd);
-  else if (e.target.matches('[data-connect]')) store.connect(String(fd.get('repo')), String(fd.get('token')));
+  else if (e.target.matches('[data-connect]')) connectForm(String(fd.get('token')).trim(), String(fd.get('repo')).trim());
 });
 
 document.addEventListener('change', async e => {
@@ -582,6 +582,19 @@ function takeSetup() {
   try { const c = JSON.parse(atob(location.hash.slice(7))); store.connect(c.repo, c.token); } catch { /* 깨진 링크 */ }
   history.replaceState(null, '', location.pathname + '#/');
   return true;
+}
+
+// 아이폰은 홈 화면 앱과 사파리의 저장 공간이 따로라 링크를 열어도 앱에 안 들어간다.
+// 그래서 설정의 칸에 연결 링크를 통째로 붙여 넣어도 되게 한다.
+function connectForm(text, repo) {
+  const i = text.indexOf('#setup=');
+  if (i >= 0) {
+    try { const c = JSON.parse(atob(text.slice(i + 7))); store.connect(c.repo, c.token); }
+    catch { toast('링크가 잘렸어요. 다시 복사해 주세요'); }
+    return;
+  }
+  if (!repo) return toast('저장소를 적어 주세요');
+  store.connect(repo, text);
 }
 
 store.init();
