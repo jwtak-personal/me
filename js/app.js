@@ -116,14 +116,48 @@ function tipSection() {
   </section>`;
 }
 
+// 홈의 할 일 행: 왼쪽은 영역 색 아이콘, 오른쪽은 완료 동그라미.
+// 오늘 할 것이면 영역 이름을, 지났거나 곧이면 그 상태를 색으로 보여 준다.
+function progress(left) {
+  const done = doneToday(), total = done + left;
+  if (!total) return '';
+  const pct = Math.round((done / total) * 100);
+  return `<div class="progress" role="img" aria-label="오늘 ${total}개 중 ${done}개 완료">
+    <div class="bar"><i class="w${Math.round(pct / 5) * 5}"></i></div>
+    <p class="t-cap weak">${done ? `${total}개 중 <b>${done}개</b> 했어요` : '하나씩 눌러서 끝내 보세요'}</p>
+  </div>`;
+}
+
+function dueRow(d) {
+  const it = d.it;
+  const sub = d.level === 'today'
+    ? `<span class="t-cap weak">${esc(areaName(it.area))}</span>`
+    : `<span class="t-cap ${d.level === 'over' ? 'alert' : 'soon'}">${esc(d.text)}</span>`;
+  return `<li class="row">
+    <button class="row-main" data-act="edit" data-id="${it.id}">
+      ${iconCircle(it.area)}
+      <span class="row-text"><span class="t-item">${esc(it.title)}</span>${sub}</span>
+    </button>
+    <button class="check end" data-act="done" data-id="${it.id}" aria-label="${esc(it.title)} 완료"><span>${icon('check', 16, 3)}</span></button>
+  </li>`;
+}
+
+// 오늘 끝낸 것: 오늘 날짜 기록 + 오늘 체크한 짧은 주기 항목(짧은 건 기록을 안 남긴다)
+function doneToday() {
+  const now = L.today();
+  return store.list('log').filter(l => l.date === now).length
+    + store.list('routine').filter(r => r.last === now && L.spanDays(r.every) < 14).length;
+}
+
 function homeView() {
   const due = dueList(), up = upcoming().slice(0, 5);
   return `
   <header class="top"><h1 class="t-title">나 관리</h1><a class="icon-btn" href="#/settings" aria-label="설정">${icon('settings')}</a></header>
   <section class="sec hero">
     <p class="t-cap weak">${L.dateText(L.today())}</p>
-    <h2 class="t-hero">${due.length ? `오늘 챙길 것 <em>${due.length}개</em>` : '오늘 챙길 것이 없어요'}</h2>
-    ${due.length ? `<ul class="rows">${due.map(d => itemRow(d.it, { sub: areaName(d.it.area), right: d.text, level: d.level })).join('')}</ul>` : ''}
+    <h2 class="t-hero">${due.length ? `오늘 챙길 것 <em>${due.length}개</em>` : '오늘 챙길 것을 다 했어요'}</h2>
+    ${progress(due.length)}
+    ${due.length ? `<ul class="rows">${due.map(dueRow).join('')}</ul>` : ''}
   </section>
   ${tipSection()}
   <section class="sec">
