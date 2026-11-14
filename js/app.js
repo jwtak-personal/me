@@ -26,9 +26,16 @@ const ICON = {
   chevron: '<path d="m9 6 6 6-6 6"/>',
   back: '<path d="m15 6-6 6 6 6"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  check: '<path d="m6 12.5 4 4 8-9"/>',
+  spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.5 2.5M15.2 15.2l2.5 2.5M6.3 17.7l2.5-2.5M15.2 8.8l2.5-2.5"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
 };
-const icon = (name, size = 24) =>
-  `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`;
+const icon = (name, size = 24, sw = 2) =>
+  `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`;
+
+// 영역마다 색 하나(styles.css 의 .c-영역). 아이콘 원의 바탕과 아이콘에만 쓴다.
+// CSP 가 인라인 style 을 막아서 색은 클래스로 준다.
+const iconCircle = (name, colorKey = name) => `<span class="icon-circle c-${colorKey}">${icon(name, 22)}</span>`;
 
 const ui = { allLogs: false };
 let sheetCtx = null;
@@ -70,11 +77,12 @@ function areaSummary(a) {
 }
 
 // ── 화면 조각 ────────────────────────────────────────────
-function itemRow(it, { sub, right, level, check = true }) {
-  const cls = level === 'over' ? 'alert' : level === 'today' ? 'strong' : 'weak';
+function itemRow(it, { sub, right, level, check = true, lead = '' }) {
+  const cls = { over: 'alert', today: 'today', soon: 'soon' }[level] ?? 'weak';
   return `<li class="row">
-    ${check ? `<button class="check" data-act="done" data-id="${it.id}" aria-label="${esc(it.title)} 완료"><span></span></button>` : ''}
+    ${check ? `<button class="check" data-act="done" data-id="${it.id}" aria-label="${esc(it.title)} 완료"><span>${icon('check', 16, 3)}</span></button>` : ''}
     <button class="row-main" data-act="edit" data-id="${it.id}">
+      ${lead}
       <span class="row-text"><span class="t-item">${esc(it.title)}</span>${sub ? `<span class="t-cap weak">${esc(sub)}</span>` : ''}</span>
       ${right ? `<span class="row-right t-cap ${cls}">${esc(right)}</span>` : ''}
     </button>
@@ -102,35 +110,32 @@ const openTips = () => store.list('tip').filter(t => !t.status).sort((a, b) => (
 function tipSection() {
   const tips = openTips();
   if (!tips.length) return '';
-  return `<div class="band"></div>
-  <section class="sec">
-    <h2 class="t-section">Claude 제안 ${tips.length}개</h2>
-    <ul class="rows">${tips.map(t => itemRow(t, { sub: TIP_KIND[t.kind] ?? '', right: t.reply ? '메모 있음' : '', check: false })).join('')}</ul>
+  return `<section class="sec">
+    <h2 class="t-section">Claude 제안 <span class="count">${tips.length}</span></h2>
+    <ul class="rows">${tips.map(t => itemRow(t, { sub: TIP_KIND[t.kind] ?? '', right: t.reply ? '메모 있음' : '', check: false, lead: iconCircle('spark', 'tip') })).join('')}</ul>
   </section>`;
 }
 
 function homeView() {
   const due = dueList(), up = upcoming().slice(0, 5);
   return `
-  <header class="top"><p class="t-item">나 관리</p><a class="icon-btn" href="#/settings" aria-label="설정">${icon('settings')}</a></header>
+  <header class="top"><h1 class="t-title">나 관리</h1><a class="icon-btn" href="#/settings" aria-label="설정">${icon('settings')}</a></header>
   <section class="sec hero">
     <p class="t-cap weak">${L.dateText(L.today())}</p>
-    <h1 class="t-hero">${due.length ? `챙길 것 ${due.length}개` : '오늘 챙길 것이 없어요'}</h1>
+    <h2 class="t-hero">${due.length ? `오늘 챙길 것 <em>${due.length}개</em>` : '오늘 챙길 것이 없어요'}</h2>
+    ${due.length ? `<ul class="rows">${due.map(d => itemRow(d.it, { sub: areaName(d.it.area), right: d.text, level: d.level })).join('')}</ul>` : ''}
   </section>
-  ${due.length ? `<ul class="rows">${due.map(d => itemRow(d.it, { sub: areaName(d.it.area), right: d.text, level: d.level })).join('')}</ul>` : ''}
   ${tipSection()}
-  <div class="band"></div>
   <section class="sec">
     <h2 class="t-section">다가오는 일정</h2>
-    ${up.length ? `<ul class="rows">${up.map(e => itemRow(e, { sub: L.dateText(e.date), right: L.eventStatus(e, L.today()).text, check: false })).join('')}</ul>` : empty('예정된 일정이 없어요')}
+    ${up.length ? `<ul class="rows">${up.map(e => { const st = L.eventStatus(e, L.today()); return itemRow(e, { sub: L.dateText(e.date), right: st.text, level: st.daysLeft <= 7 ? 'soon' : 'ok', check: false, lead: iconCircle(e.area) }); }).join('')}</ul>` : empty('예정된 일정이 없어요')}
   </section>
-  <div class="band"></div>
   <section class="sec">
     <h2 class="t-section">영역</h2>
     <ul class="rows">${AREAS.map(a => {
       const s = areaSummary(a);
       return `<li class="row"><a class="row-main" href="#/a/${a.id}">
-        <span class="icon-circle">${icon(a.id, 20)}</span>
+        ${iconCircle(a.id)}
         <span class="row-text"><span class="t-item">${a.name}</span><span class="t-cap ${s.alert ? 'alert' : 'weak'}">${esc(s.text)}</span></span>
         <span class="chev">${icon('chevron', 16)}</span>
       </a></li>`;
@@ -148,7 +153,7 @@ function metricBlock(a) {
       ${cur ? `<p class="t-hero">${num(cur.value)}${m.unit}</p><p class="t-cap weak">${L.dateText(cur.date, false)} 기준</p>` : `<p class="t-body weak">아직 적은 값이 없어요</p>`}
     </div>
     <button class="btn-sub" data-act="reading" data-area="${a.id}">${cur ? '새로 적기' : '적기'}</button>
-  </section><div class="band"></div>`;
+  </section>`;
 }
 
 function goalSection(a) {
@@ -156,7 +161,7 @@ function goalSection(a) {
   return `<section class="sec">
     ${secHead('목표', 'goal', a.id)}
     ${goals.length ? `<ul class="rows">${goals.map(g => itemRow(g, { sub: g.by ? `${L.dateText(g.by, false)}까지` : '', right: g.pct != null ? `${g.pct}%` : '', level: 'today', check: false })).join('')}</ul>` : empty('아직 목표가 없어요')}
-  </section><div class="band"></div>`;
+  </section>`;
 }
 
 function areaView(a) {
@@ -170,20 +175,19 @@ function areaView(a) {
   return `
   <header class="top left"><a class="icon-btn back" href="#/" aria-label="뒤로">${icon('back')}</a><h1 class="t-title">${a.name}</h1></header>
   ${a.metric ? metricBlock(a) : ''}
-  ${a.link ? `<ul class="rows"><li class="row"><a class="row-main" href="${a.link.url}" target="_blank" rel="noopener">
+  ${a.link ? `<section class="sec"><ul class="rows"><li class="row"><a class="row-main" href="${a.link.url}" target="_blank" rel="noopener">
+      ${iconCircle(a.id)}
       <span class="row-text"><span class="t-item">${a.link.title}</span></span>
-      <span class="chev">${icon('chevron', 16)}</span></a></li></ul><div class="band"></div>` : ''}
+      <span class="chev">${icon('chevron', 16)}</span></a></li></ul></section>` : ''}
   ${a.goals ? goalSection(a) : ''}
   <section class="sec">
     ${secHead('주기 관리', 'routine', a.id)}
     ${rs.length ? `<ul class="rows">${rs.map(({ r, st }) => itemRow(r, { sub: L.everyText(r), right: L.statusText(st, r), level: st.level })).join('')}</ul>` : empty('주기로 챙길 항목을 추가해 보세요')}
   </section>
-  <div class="band"></div>
   <section class="sec">
     ${secHead('일정', 'event', a.id)}
     ${evs.length ? `<ul class="rows">${evs.map(e => { const st = L.eventStatus(e, now); return itemRow(e, { sub: L.dateText(e.date), right: st.text, level: st.level }); }).join('')}</ul>` : empty('예정된 일정이 없어요')}
   </section>
-  <div class="band"></div>
   <section class="sec">
     ${secHead('기록', 'log', a.id)}
     ${spent ? `<p class="t-cap weak spent">올해 쓴 돈 ${num(spent)}원</p>` : ''}
@@ -213,7 +217,6 @@ function settingsView() {
         <button class="btn-primary" type="submit">연결</button>
       </form>`}
   </section>
-  <div class="band"></div>
   <section class="sec">
     <h2 class="t-section">백업</h2>
     <div class="stack">
@@ -221,8 +224,7 @@ function settingsView() {
       <label class="btn-sub wide">파일에서 가져오기<input type="file" accept="application/json,.json" hidden data-import></label>
     </div>
   </section>
-  ${installEvt ? `<div class="band"></div>
-  <section class="sec">
+  ${installEvt ? `  <section class="sec">
     <h2 class="t-section">설치</h2>
     <div class="stack"><button class="btn-sub wide" data-act="install">홈 화면에 추가</button></div>
   </section>` : ''}`;
@@ -364,7 +366,12 @@ function saveTip(status, fd = new FormData(dlg.querySelector('form'))) {
 const ACT = {
   tiplater: () => { saveTip(null); dlg.close(); toast('메모를 남겼어요'); },
   tipskip: () => { saveTip('skip'); dlg.close(); toast('넘겼어요'); },
-  done: el => { const it = store.get(el.dataset.id); if (it) done(it); },
+  done: el => {
+    const it = store.get(el.dataset.id);
+    if (!it) return;
+    el.classList.add('on');
+    setTimeout(() => done(it), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 240);
+  },
   edit: el => { const it = store.get(el.dataset.id); if (it) openSheet({ kind: it.type, item: it }); },
   add: el => openSheet({ kind: el.dataset.kind, area: el.dataset.area }),
   reading: el => openSheet({ kind: 'reading', area: el.dataset.area }),
@@ -431,6 +438,7 @@ function takeSetup() {
 store.init();
 takeSetup();
 store.on(render);
+dlg.addEventListener('close', render); // 완료 시트를 그냥 닫으면 파랗게 바뀐 동그라미를 되돌린다
 addEventListener('hashchange', () => { takeSetup(); ui.allLogs = false; render(); scrollTo(0, 0); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { store.sync(); render(); } });
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; render(); });
