@@ -1,6 +1,6 @@
-import { AREAS } from './templates.js?v=20261114';
-import * as L from './logic.js?v=20261114';
-import { store } from './store.js?v=20261114';
+import { AREAS } from './templates.js?v=20261114b';
+import * as L from './logic.js?v=20261114b';
+import { store } from './store.js?v=20261114b';
 
 const app = document.getElementById('app');
 const dlg = document.getElementById('sheet');
@@ -32,14 +32,15 @@ const ICON = {
   spark: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',
+  flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  logbook: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>',
   grid: '<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>',
 };
 const icon = (name, size = 24, sw = 2) =>
   `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`;
 
-// 영역마다 색 하나(styles.css 의 .c-영역). 아이콘 원의 바탕과 아이콘에만 쓴다.
-// CSP 가 인라인 style 을 막아서 색은 클래스로 준다.
-const iconCircle = (name, colorKey = name) => `<span class="icon-circle c-${colorKey}">${icon(name, 22)}</span>`;
+// CSP 가 인라인 style 을 막아서 색은 클래스로 준다(styles.css 의 .g-영역).
 const mm = q => matchMedia(q).matches;
 
 const ui = { allLogs: false, allDue: false };
@@ -81,247 +82,187 @@ function areaSummary(a) {
   return { text: unknown ? `기록 없는 항목 ${unknown}개` : '다 챙겼어요' };
 }
 
-// ── 화면 조각 ────────────────────────────────────────────
-const STATUS_CLS = { over: 'alert', today: 'today', soon: 'soon' };
-const checkBtn = it =>
-  `<button class="check" data-act="done" data-id="${it.id}" aria-label="${esc(it.title)} 완료"><span>${icon('check', 16, 3)}</span></button>`;
+// ── 화면 조각 (Things 3 방식: 흰 바탕, 작은 색 아이콘, 왼쪽 체크박스, 얇은 선 아래 묶음 제목) ──
+// 영역 색은 styles.css 의 .g-영역. 아이콘에만 쓰고 바탕은 칠하지 않는다.
+const glyph = (name, color = name, size = 22) => `<span class="glyph g-${color}">${icon(name, size)}</span>`;
+const box = it =>
+  `<button class="box" data-act="done" data-id="${it.id}" aria-label="${esc(it.title)} 완료"><span>${icon('check', 14, 3)}</span></button>`;
 
-// 행: 왼쪽 아이콘(선택), 가운데 제목과 보조, 오른쪽 상태, 맨 오른쪽 완료 동그라미(선택)
-function itemRow(it, { sub, right, level, check = true, lead = '' }) {
+// 할 일 한 줄: 체크박스, 제목, 아래 회색 보조, 오른쪽 작은 상태
+function taskRow(it, { sub = '', meta = '', metaCls = '', check = true, lead = '' } = {}) {
   return `<li class="row">
+    ${check ? box(it) : lead}
     <button class="row-main" data-act="edit" data-id="${it.id}">
-      ${lead}
-      <span class="row-text"><span class="t-item">${esc(it.title)}</span>${sub ? `<span class="t-cap weak">${esc(sub)}</span>` : ''}</span>
-      ${right ? `<span class="row-right t-cap ${STATUS_CLS[level] ?? 'weak'}">${esc(right)}</span>` : ''}
+      <span class="row-text"><span class="row-title">${esc(it.title)}</span>${sub ? `<span class="row-sub">${esc(sub)}</span>` : ''}</span>
+      ${meta ? `<span class="row-meta ${metaCls}">${esc(meta)}</span>` : ''}
     </button>
-    ${check ? checkBtn(it) : ''}
   </li>`;
 }
+// 예전 이름으로 부르는 곳(목표)을 위해 남겨 둔다
+const itemRow = (it, { sub, right, level, check = true, lead = '' }) =>
+  taskRow(it, { sub, meta: right, metaCls: STATUS_CLS[level] ?? '', check, lead });
+const STATUS_CLS = { over: 'alert', today: 'today', soon: 'soon' };
 
-const dateBadge = s => {
-  const d = L.parse(s);
-  return `<span class="date-badge"><span>${d.getMonth() + 1}월</span><b>${d.getDate()}</b></span>`;
-};
-
-const secHead = (title, kind, area) => `<div class="sec-head">
-  <h2 class="t-section">${title}</h2>
-  <button class="link" data-act="add" data-kind="${kind}" data-area="${area}">추가 ${icon('plus', 14, 2.4)}</button>
+// 페이지 머리: 색 아이콘 + 큰 제목, 아래 회색 한 줄
+const pageTitle = (title, g, color, sub = '') => `<div class="page-title">
+  <h1>${g ? glyph(g, color, 28) : ''}<span>${title}</span></h1>
+  ${sub ? `<p class="page-sub">${sub}</p>` : ''}
 </div>`;
-
-const empty = text => `<p class="t-body weak empty">${text}</p>`;
-const headBtn = (kind, label) => `<button class="head-btn" data-act="add" data-kind="${kind}" aria-label="${label}">추가</button>`;
-const brand = `<span class="brand"><img src="icons/icon-192.png" alt="" width="28" height="28"><span>나 관리</span></span>`;
-const pageTop = (title, right = '') => `<header class="top">${brand}${right}</header><div class="page-head"><h1 class="t-title">${title}</h1></div>`;
+// 안쪽 화면 머리: 뒤로가기만
+const navBar = back => `<header class="nav"><a class="icon-btn" href="${back}" aria-label="뒤로">${icon('back', 26)}</a></header>`;
+// 묶음 제목: 얇은 선 위
+const groupHead = (title, { g, color, add, blue } = {}) => `<div class="group-head${blue ? ' blue' : ''}">
+  ${g ? glyph(g, color, 20) : ''}<h2>${title}</h2>
+  ${add ? `<button class="add-mini" data-act="add" data-kind="${add.kind}" data-area="${add.area ?? ''}" aria-label="${title} 추가">${icon('plus', 20, 2.2)}</button>` : ''}
+</div>`;
+const empty = text => `<p class="empty">${text}</p>`;
+const fab = (kind, label) => `<button class="fab" data-act="add" data-kind="${kind}" aria-label="${label}">${icon('plus', 28, 2.4)}</button>`;
 
 function syncLine() {
   const s = store.syncState();
   const text = { syncing: '동기화하는 중', offline: '오프라인이에요. 다음에 열 때 올려요', error: `동기화 실패. ${s.msg}` }[s.status];
-  return text ? `<p class="t-cap weak foot">${esc(text)}</p>` : '';
+  return text ? `<p class="foot">${esc(text)}</p>` : '';
 }
 
-// ── 홈 ───────────────────────────────────────────────────
-// Claude 가 점검 때 data.json 에 넣는 제안. 읽고 반영하거나 넘기면 홈에서 사라진다.
+// ── 데이터 묶기 ──────────────────────────────────────────
+// Claude 가 점검 때 data.json 에 넣는 제안. 읽고 반영하거나 넘기면 사라진다.
 const TIP_KIND = { fact: '새로 알게 된 것', auto: '자동으로 할 수 있는 것', better: '더 잘할 수 있는 것' };
 const openTips = () => store.list('tip').filter(t => !t.status).sort((a, b) => (a.date < b.date ? 1 : -1));
-
-function tipSection() {
-  const tips = openTips();
-  if (!tips.length) return '';
-  return `<section class="sec">
-    <div class="sec-head"><h2 class="t-section">Claude 제안 <span class="count">${tips.length}</span></h2></div>
-    <ul class="rows">${tips.map(t => itemRow(t, { sub: TIP_KIND[t.kind] ?? '', right: t.reply ? '메모 있음' : '', level: 'today', check: false, lead: iconCircle('spark', 'tip') })).join('')}</ul>
-  </section>`;
-}
-
-// 오늘 끝낸 것: 오늘 날짜 기록 + 오늘 체크한 짧은 주기 항목(짧은 건 기록을 안 남긴다)
-function doneToday() {
-  const now = L.today();
-  return store.list('log').filter(l => l.date === now).length
-    + store.list('routine').filter(r => r.last === now && L.spanDays(r.every) < 14).length;
-}
-
-function progressBar(done, total) {
-  const pct = total ? Math.round((done / total) * 100) : 100;
-  return `<svg class="bar" width="100%" height="8" role="img" aria-label="오늘 ${total}개 중 ${done}개 완료">
-    <rect class="bar-bg" width="100%" height="8" rx="4"/>
-    ${pct ? `<rect class="bar-fg" width="${pct}%" height="8" rx="4"/>` : ''}
-  </svg>`;
-}
-
-// 홈의 할 일 행: 왼쪽은 영역 색 아이콘, 오른쪽은 완료 동그라미.
-// 오늘 할 것이면 영역 이름을, 지났거나 곧이면 그 상태를 색으로 보여 준다.
-function dueRow(d) {
-  const it = d.it;
-  const sub = d.level === 'today'
-    ? `<span class="t-cap weak">${esc(areaName(it.area))}</span>`
-    : `<span class="t-cap ${d.level === 'over' ? 'alert' : 'soon'}">${esc(d.text)}</span>`;
-  return `<li class="row">
-    <button class="row-main" data-act="edit" data-id="${it.id}">
-      ${iconCircle(it.area)}
-      <span class="row-text"><span class="t-item">${esc(it.title)}</span>${sub}</span>
-    </button>
-    ${checkBtn(it)}
-  </li>`;
-}
-
 const won = n => `${num(n)}원`;
-const monthSpent = () => {
-  const ym = L.today().slice(0, 7);
-  return store.list('log').filter(l => l.date.startsWith(ym)).reduce((t, l) => t + (l.cost || 0), 0);
-};
-const unknownCount = () => {
-  const now = L.today(), km = curKm();
-  return store.list('routine').filter(r => L.routineStatus(r, now, km).level === 'unknown').length;
+const spentIn = prefix => store.list('log').filter(l => l.date.startsWith(prefix)).reduce((t, l) => t + (l.cost || 0), 0);
+const dayLabel = s => {
+  const d = L.diffDays(s, L.today());
+  return d === 0 ? '오늘' : d === 1 ? '내일' : `${'일월화수목금토'[L.parse(s).getDay()]}요일`;
 };
 
-function tile(href, ic, color, label, value, sub) {
-  return `<a class="tile" href="${href}">
-    <span class="icon-circle small c-${color}">${icon(ic, 18)}</span>
-    <span class="t-cap weak">${label}</span>
-    <span class="t-section">${value}</span>
-    ${sub ? `<span class="t-cap weak">${sub}</span>` : ''}
-  </a>`;
+// 앞으로 돌아오는 것: 일정 + 2주 이상 주기 항목(마지막 날짜를 아는 것만), 날짜별로
+function agenda(days) {
+  const now = L.today(), end = L.addInterval(now, { n: days, unit: 'day' });
+  const out = [];
+  for (const e of store.list('event')) if (!e.done && e.date > now && e.date <= end) out.push({ date: e.date, it: e });
+  for (const r of store.list('routine')) {
+    if (!r.last || L.spanDays(r.every) < 14) continue;
+    const due = L.addInterval(r.last, r.every);
+    if (due > now && due <= end) out.push({ date: due, it: r });
+  }
+  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const groups = [];
+  for (const x of out) {
+    if (groups.at(-1)?.date !== x.date) groups.push({ date: x.date, items: [] });
+    groups.at(-1).items.push(x.it);
+  }
+  return groups;
 }
 
-function eventRows(list) {
-  const now = L.today();
-  return `<ul class="rows">${list.map(e => {
-    const st = L.eventStatus(e, now);
-    return itemRow(e, { sub: areaName(e.area), right: st.text, level: st.daysLeft <= 7 ? 'soon' : 'ok', check: false, lead: dateBadge(e.date) });
-  }).join('')}</ul>`;
-}
-
+// ── 오늘 (Things 'Today') ─────────────────────────────────
 function homeView() {
-  const due = dueList(), up = upcoming();
-  const shown = ui.allDue ? due : due.slice(0, 5);
-  const done = doneToday(), total = done + due.length;
-  const next = up[0], km = latest('odometer');
-  const head = due.length ? `오늘 챙길 것<br><em>${due.length}개</em> 남았어요` : total ? '오늘 할 일을<br>다 했어요' : '오늘은 챙길 것이<br>없어요';
+  const due = dueList();
+  const now = due.filter(d => d.level !== 'soon');
+  const soon = due.filter(d => d.level === 'soon');
+  const tips = openTips();
+  const week = upcoming().filter(e => L.diffDays(e.date, L.today()) <= 14);
+  const row = d => taskRow(d.it, {
+    sub: areaName(d.it.area),
+    meta: d.level === 'today' ? '' : d.text,
+    metaCls: d.level === 'over' ? 'alert' : '',
+  });
   return `
-  <header class="top">${brand}</header>
-  <section class="sec hero">
-    <p class="kicker">${L.dateText(L.today())}</p>
-    <h1 class="t-hero">${head}</h1>
-    ${total ? `<div class="progress">${progressBar(done, total)}<p class="t-cap weak">${total}개 중 <b class="today">${done}개</b> 했어요</p></div>` : ''}
-    ${due.length ? `<ul class="rows">${shown.map(dueRow).join('')}</ul>` : ''}
-    ${due.length > shown.length ? `<button class="more" data-act="moredue">${due.length - shown.length}개 더 보기 ${icon('down', 16)}</button>` : ''}
-  </section>
-  <section class="sec">
-    <div class="tiles">
-      ${tile('#/plan', 'calendar', 'money', '다음 일정', next ? L.eventStatus(next, L.today()).text : '없음', next ? esc(next.title) : '')}
-      ${tile('#/a/car', 'car', 'car', '주행거리', km ? `${num(km.value)}km` : '적기 전', km ? `${L.dateText(km.date, false)} 기준` : '')}
-      ${tile('#/log', 'receipt', 'home', '이번 달 쓴 돈', won(monthSpent()), '')}
-      ${tile('#/all', 'grid', 'growth', '채울 항목', `${unknownCount()}개`, '기록 없는 주기 항목')}
-    </div>
-  </section>
-  ${tipSection()}
-  <section class="sec">
-    <div class="sec-head"><h2 class="t-section">다가오는 일정</h2>${up.length > 3 ? `<a class="link" href="#/plan">전체 ${icon('chevron', 14, 2.4)}</a>` : ''}</div>
-    ${up.length ? eventRows(up.slice(0, 3)) : empty('예정된 일정이 없어요')}
-  </section>
-  ${syncLine()}`;
+  ${pageTitle('오늘', 'star', 'star', L.dateText(L.today()))}
+  ${tips.length ? `<a class="note-box link-box" href="#/tips">${glyph('spark', 'tip', 20)}<span>Claude 제안 <b>${tips.length}개</b></span>${icon('chevron', 16)}</a>` : ''}
+  ${week.length ? `<div class="note-box agenda-box">${week.map(e => `<button class="agenda-line" data-act="edit" data-id="${e.id}">
+      <span class="agenda-date">${dayLabel(e.date) === '내일' ? '내일' : L.dateText(e.date, false)}</span><span>${esc(e.title)}</span>
+    </button>`).join('')}</div>` : ''}
+  ${now.length ? `<ul class="rows">${now.map(row).join('')}</ul>` : `<div class="all-done">${glyph('check', 'done', 28)}<p>오늘 할 일을 다 했어요</p></div>`}
+  ${soon.length ? `${groupHead('곧', { g: 'flag', color: 'flag' })}<ul class="rows">${soon.map(row).join('')}</ul>` : ''}
+  ${syncLine()}
+  ${fab('event', '할 일 추가')}`;
 }
 
-// ── 일정 탭 ─────────────────────────────────────────────
+// ── 일정 (Things 'Upcoming') ──────────────────────────────
 function planView() {
-  const now = L.today(), km = curKm();
-  const up = upcoming();
-  // 2주 이상 주기 항목 가운데 한 달 안에 돌아오는 것
-  const soon = store.list('routine')
-    .filter(r => L.spanDays(r.every) >= 14)
-    .map(r => ({ r, st: L.routineStatus(r, now, km) }))
-    .filter(({ st }) => st.daysLeft != null && st.daysLeft > 0 && st.daysLeft <= 31)
-    .sort((a, b) => a.st.daysLeft - b.st.daysLeft);
+  const groups = agenda(120);
+  const thisYear = L.today().slice(0, 4);
   return `
-  ${pageTop('일정', headBtn('event', '일정 추가'))}
-  <section class="sec">
-    <h2 class="t-section">다가오는 일정</h2>
-    ${up.length ? eventRows(up) : empty('예정된 일정이 없어요')}
-  </section>
-  <section class="sec">
-    <h2 class="t-section">한 달 안에 돌아오는 것</h2>
-    ${soon.length ? `<ul class="rows">${soon.map(({ r, st }) => itemRow(r, { sub: areaName(r.area), right: L.statusText(st, r), level: st.level, check: false, lead: iconCircle(r.area) })).join('')}</ul>` : empty('한 달 안에 돌아오는 항목이 없어요')}
-  </section>
-`;
+  ${pageTitle('일정', 'calendar', 'cal')}
+  ${groups.length ? groups.map(g => {
+    const d = L.parse(g.date);
+    return `<div class="day-head"><b>${d.getDate()}</b><span>${g.date.slice(0, 4) === thisYear ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월 ${dayLabel(g.date)}</span></div>
+      <ul class="rows">${g.items.map(it => taskRow(it, { sub: it.type === 'routine' ? L.everyText(it) : areaName(it.area) })).join('')}</ul>`;
+  }).join('') : empty('앞으로 넉 달 동안 잡힌 일정이 없어요')}
+  ${fab('event', '일정 추가')}`;
 }
 
-// ── 기록 탭 ─────────────────────────────────────────────
+// ── 기록 (Things 'Logbook') ──────────────────────────────
 function logView() {
   const logs = store.list('log').sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : y.u - x.u));
-  const year = L.today().slice(0, 4);
-  const yearSpent = logs.filter(l => l.date.startsWith(year)).reduce((t, l) => t + (l.cost || 0), 0);
+  const ym = L.today().slice(0, 7), year = L.today().slice(0, 4);
   const months = [];
   for (const l of logs) {
-    const ym = l.date.slice(0, 7);
-    if (months.at(-1)?.ym !== ym) months.push({ ym, items: [] });
+    const k = l.date.slice(0, 7);
+    if (months.at(-1)?.ym !== k) months.push({ ym: k, items: [] });
     months.at(-1).items.push(l);
   }
   return `
-  ${pageTop('기록', headBtn('log', '기록 추가'))}
-  <section class="sec">
-    <div class="tiles">
-      ${tile('#/log', 'receipt', 'home', '이번 달 쓴 돈', won(monthSpent()), '')}
-      ${tile('#/log', 'receipt', 'money', '올해 쓴 돈', won(yearSpent), '')}
-    </div>
-  </section>
+  ${pageTitle('기록', 'logbook', 'done', `이번 달 ${won(spentIn(ym))}, 올해 ${won(spentIn(year))} 썼어요`)}
   ${months.length ? months.map(m => {
     const [y, mo] = m.ym.split('-').map(Number);
     const sum = m.items.reduce((t, l) => t + (l.cost || 0), 0);
-    return `<section class="sec">
-      <div class="sec-head"><h2 class="t-section">${y === Number(year) ? '' : `${y}년 `}${mo}월</h2>${sum ? `<span class="t-item">${won(sum)}</span>` : ''}</div>
-      <ul class="rows">${m.items.map(l => itemRow(l, { sub: L.dateText(l.date), right: l.cost ? won(l.cost) : '', check: false, lead: iconCircle(l.area) })).join('')}</ul>
-    </section>`;
-  }).join('') : `<section class="sec">${empty('할 일을 끝내면 여기에 쌓여요')}</section>`}
-`;
+    return `${groupHead(`${String(y) === year ? '' : `${y}년 `}${mo}월${sum ? ` <small>${won(sum)}</small>` : ''}`)}
+      <ul class="rows">${m.items.map(l => taskRow(l, { check: false, lead: `<span class="box done-box"><span>${icon('check', 14, 3)}</span></span>`, sub: L.dateText(l.date), meta: l.cost ? won(l.cost) : '' })).join('')}</ul>`;
+  }).join('') : empty('할 일을 끝내면 여기에 쌓여요')}
+  ${fab('log', '기록 추가')}`;
 }
 
-// ── 전체 탭 ─────────────────────────────────────────────
+// ── 전체 (Things 첫 화면 목록) ────────────────────────────
 function allView() {
+  const due = dueList();
+  const over = due.filter(d => d.level === 'over').length;
+  const navRow = (href, g, color, name, count = '', badge = '') => `<li><a class="list-row" href="${href}">
+    ${glyph(g, color)}<span class="list-name">${name}</span>
+    ${badge ? `<span class="badge">${badge}</span>` : ''}${count !== '' ? `<span class="list-count">${count}</span>` : ''}
+  </a></li>`;
   return `
-  ${pageTop('전체')}
-  <section class="sec">
-    <ul class="rows">${AREAS.map(a => {
-      const s = areaSummary(a);
-      return `<li class="row"><a class="row-main" href="#/a/${a.id}">
-        ${iconCircle(a.id)}
-        <span class="row-text"><span class="t-item">${a.name}</span><span class="t-cap ${s.alert ? 'alert' : 'weak'}">${esc(s.text)}</span></span>
-        <span class="chev">${icon('chevron', 16)}</span>
-      </a></li>`;
-    }).join('')}</ul>
-  </section>
-  <section class="sec">
-    <ul class="rows"><li class="row"><a class="row-main" href="#/settings">
-      ${iconCircle('settings', 'gray')}
-      <span class="row-text"><span class="t-item">설정</span><span class="t-cap weak">동기화와 백업</span></span>
-      <span class="chev">${icon('chevron', 16)}</span>
-    </a></li></ul>
-  </section>`;
+  ${pageTitle('전체')}
+  <ul class="list">
+    ${navRow('#/', 'star', 'star', '오늘', due.length || '', over || '')}
+    ${navRow('#/plan', 'calendar', 'cal', '일정', upcoming().length || '')}
+    ${navRow('#/tips', 'spark', 'tip', 'Claude 제안', openTips().length || '')}
+    ${navRow('#/log', 'logbook', 'done', '기록')}
+  </ul>
+  <div class="list-gap"></div>
+  <ul class="list">
+    ${AREAS.map(a => {
+      const n = due.filter(d => d.it.area === a.id).length;
+      const o = due.filter(d => d.it.area === a.id && d.level === 'over').length;
+      return navRow(`#/a/${a.id}`, a.id, a.id, a.name, n || '', o || '');
+    }).join('')}
+  </ul>
+  <div class="list-gap"></div>
+  <ul class="list">${navRow('#/settings', 'settings', 'gray', '설정')}</ul>`;
 }
 
-function navView(tab) {
-  const t = (href, id, name, ic) =>
-    `<a href="${href}" class="${tab === id ? 'on' : ''}"${tab === id ? ' aria-current="page"' : ''}>${icon(ic, 24, tab === id ? 2.4 : 2)}<span>${name}</span></a>`;
-  return `<nav class="tabbar">${t('#/', 'home', '홈', 'home')}${t('#/plan', 'plan', '일정', 'calendar')}${t('#/log', 'log', '기록', 'receipt')}${t('#/all', 'all', '전체', 'grid')}</nav>`;
+// ── Claude 제안 ──────────────────────────────────────────
+function tipsView() {
+  const tips = openTips();
+  return `
+  ${navBar('#/all')}
+  ${pageTitle('Claude 제안', 'spark', 'tip')}
+  ${tips.length ? `<ul class="rows">${tips.map(t => taskRow(t, { check: false, lead: glyph('spark', 'tip', 20), sub: TIP_KIND[t.kind] ?? '', meta: t.reply ? '메모 있음' : '', metaCls: 'today' })).join('')}</ul>` : empty('지금은 새 제안이 없어요')}`;
 }
 
-// ── 영역 ─────────────────────────────────────────────────
+// ── 영역 (Things 'Project') ──────────────────────────────
 function metricBlock(a) {
   const m = a.metric, cur = latest(m.key);
-  return `<section class="sec metric">
-    <div>
-      <p class="t-cap weak">${m.name}</p>
-      ${cur ? `<p class="t-hero">${num(cur.value)}${m.unit}</p><p class="t-cap weak">${L.dateText(cur.date, false)} 기준</p>` : `<p class="t-body weak">아직 적은 값이 없어요</p>`}
-    </div>
-    <button class="btn-sub" data-act="reading" data-area="${a.id}">${cur ? '새로 적기' : '적기'}</button>
-  </section>`;
+  return `<div class="note-box metric">
+    <div><p class="row-sub">${m.name}</p><p class="metric-value">${cur ? `${num(cur.value)}${m.unit}` : '적기 전'}</p>${cur ? `<p class="row-sub">${L.dateText(cur.date, false)} 기준</p>` : ''}</div>
+    <button class="pill" data-act="reading" data-area="${a.id}">${cur ? '새로 적기' : '적기'}</button>
+  </div>`;
 }
 
 function goalSection(a) {
   const goals = store.list('goal', a.id).sort((x, y) => ((x.by || '9') < (y.by || '9') ? -1 : 1));
-  return `<section class="sec">
-    ${secHead('목표', 'goal', a.id)}
-    ${goals.length ? `<ul class="rows">${goals.map(g => itemRow(g, { sub: g.by ? `${L.dateText(g.by, false)}까지` : '', right: g.pct != null ? `${g.pct}%` : '', level: 'today', check: false })).join('')}</ul>` : empty('아직 목표가 없어요')}
-  </section>`;
+  return `${groupHead('목표', { blue: true, add: { kind: 'goal', area: a.id } })}
+    ${goals.length ? `<ul class="rows">${goals.map(g => taskRow(g, { check: false, lead: glyph('growth', 'growth', 20), sub: g.by ? `${L.dateText(g.by, false)}까지` : '', meta: g.pct != null ? `${g.pct}%` : '', metaCls: 'today' })).join('')}</ul>` : empty('아직 목표가 없어요')}`;
 }
 
 function areaView(a) {
@@ -334,31 +275,24 @@ function areaView(a) {
   const shown = ui.allLogs ? logs : logs.slice(0, 5);
   const s = areaSummary(a);
   return `
-  <header class="top bar"><a class="icon-btn back" href="#/all" aria-label="뒤로">${icon('back')}</a><span class="t-item bar-title">${a.name}</span></header>
-  <section class="sec area-hero">
-    <span class="icon-circle big c-${a.id}">${icon(a.id, 28)}</span>
-    <div><h1 class="t-title">${a.name}</h1><p class="t-cap ${s.alert ? 'alert' : 'weak'}">${esc(s.text)}</p></div>
-  </section>
+  ${navBar('#/all')}
+  ${pageTitle(a.name, a.id, a.id, esc(s.text))}
   ${a.metric ? metricBlock(a) : ''}
-  ${a.link ? `<section class="sec"><ul class="rows"><li class="row"><a class="row-main" href="${a.link.url}" target="_blank" rel="noopener">
-      ${iconCircle(a.id)}
-      <span class="row-text"><span class="t-item">${a.link.title}</span></span>
-      <span class="chev">${icon('chevron', 16)}</span></a></li></ul></section>` : ''}
+  ${a.link ? `<a class="note-box link-box" href="${a.link.url}" target="_blank" rel="noopener">${glyph(a.id, a.id, 20)}<span>${a.link.title}</span>${icon('chevron', 16)}</a>` : ''}
   ${a.goals ? goalSection(a) : ''}
-  <section class="sec">
-    ${secHead('주기 관리', 'routine', a.id)}
-    ${rs.length ? `<ul class="rows">${rs.map(({ r, st }) => itemRow(r, { sub: L.everyText(r), right: L.statusText(st, r), level: st.level })).join('')}</ul>` : empty('주기로 챙길 항목을 추가해 보세요')}
-  </section>
-  <section class="sec">
-    ${secHead('일정', 'event', a.id)}
-    ${evs.length ? `<ul class="rows">${evs.map(e => { const st = L.eventStatus(e, now); return itemRow(e, { sub: L.dateText(e.date), right: st.text, level: st.level, lead: dateBadge(e.date) }); }).join('')}</ul>` : empty('예정된 일정이 없어요')}
-  </section>
-  <section class="sec">
-    ${secHead('기록', 'log', a.id)}
-    ${spent ? `<p class="t-cap weak spent">올해 쓴 돈 ${won(spent)}</p>` : ''}
-    ${logs.length ? `<ul class="rows">${shown.map(l => itemRow(l, { sub: L.dateText(l.date), right: l.cost ? won(l.cost) : '', check: false })).join('')}</ul>` : empty('아직 기록이 없어요')}
-    ${logs.length > 5 && !ui.allLogs ? `<button class="more" data-act="morelogs">기록 ${logs.length}개 모두 보기${icon('down', 16)}</button>` : ''}
-  </section>`;
+  ${groupHead('주기 관리', { blue: true, add: { kind: 'routine', area: a.id } })}
+  ${rs.length ? `<ul class="rows">${rs.map(({ r, st }) => taskRow(r, { sub: L.everyText(r), meta: L.statusText(st, r), metaCls: STATUS_CLS[st.level] ?? '' })).join('')}</ul>` : empty('주기로 챙길 항목을 추가해 보세요')}
+  ${groupHead('일정', { blue: true, add: { kind: 'event', area: a.id } })}
+  ${evs.length ? `<ul class="rows">${evs.map(e => { const st = L.eventStatus(e, now); return taskRow(e, { sub: L.dateText(e.date), meta: st.text, metaCls: STATUS_CLS[st.level] ?? '' }); }).join('')}</ul>` : empty('예정된 일정이 없어요')}
+  ${groupHead(`기록${spent ? ` <small>올해 ${won(spent)}</small>` : ''}`, { blue: true, add: { kind: 'log', area: a.id } })}
+  ${logs.length ? `<ul class="rows">${shown.map(l => taskRow(l, { check: false, lead: `<span class="box done-box"><span>${icon('check', 14, 3)}</span></span>`, sub: L.dateText(l.date), meta: l.cost ? won(l.cost) : '' })).join('')}</ul>` : empty('아직 기록이 없어요')}
+  ${logs.length > 5 && !ui.allLogs ? `<button class="more" data-act="morelogs">기록 ${logs.length}개 모두 보기</button>` : ''}`;
+}
+
+function navView(tab) {
+  const t = (href, id, name, ic) =>
+    `<a href="${href}" class="${tab === id ? 'on' : ''}"${tab === id ? ' aria-current="page"' : ''}>${icon(ic, 24, 2)}<span>${name}</span></a>`;
+  return `<nav class="tabbar">${t('#/', 'home', '오늘', 'star')}${t('#/plan', 'plan', '일정', 'calendar')}${t('#/log', 'log', '기록', 'logbook')}${t('#/all', 'all', '전체', 'grid')}</nav>`;
 }
 
 // ── 설정 ─────────────────────────────────────────────────
@@ -367,33 +301,26 @@ function settingsView() {
   const at = s.at ? new Date(s.at).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }) : '';
   const line = { syncing: '동기화하는 중이에요', ok: `${at}에 맞췄어요`, offline: '오프라인이에요. 다음에 열 때 올려요', error: `동기화하지 못했어요. ${s.msg}`, idle: '연결돼 있어요' }[s.status] ?? '';
   return `
-  <header class="top bar"><a class="icon-btn back" href="#/all" aria-label="뒤로">${icon('back')}</a><span class="t-item bar-title">설정</span></header>
-  <div class="page-head"><h1 class="t-title">설정</h1></div>
-  <section class="sec">
-    <h2 class="t-section">동기화</h2>
-    ${c ? `<p class="t-body muted lead">${esc(line)}</p>
-      <div class="stack">
-        <button class="btn-sub wide" data-act="sync">지금 동기화</button>
-        <button class="btn-sub wide" data-act="copylink">다른 기기 연결 링크 복사</button>
-        <button class="btn-text" data-act="disconnect">연결 끊기</button>
-      </div>`
-    : `<form class="stack" data-connect>
-        <label class="field"><span class="t-cap muted">연결 링크 또는 토큰</span><input name="token" type="password" required autocomplete="off"></label>
-        <label class="field"><span class="t-cap muted">저장소</span><input name="repo" placeholder="토큰을 넣을 때만" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
-        <button class="btn-primary" type="submit">연결</button>
-      </form>`}
-  </section>
-  <section class="sec">
-    <h2 class="t-section">백업</h2>
+  ${navBar('#/all')}
+  ${pageTitle('설정', 'settings', 'gray')}
+  ${groupHead('동기화', { blue: true })}
+  ${c ? `<p class="row-sub lead">${esc(line)}</p>
     <div class="stack">
-      <button class="btn-sub wide" data-act="export">파일로 내보내기</button>
-      <label class="btn-sub wide">파일에서 가져오기<input type="file" accept="application/json,.json" hidden data-import></label>
-    </div>
-  </section>
-  ${installEvt ? `  <section class="sec">
-    <h2 class="t-section">설치</h2>
-    <div class="stack"><button class="btn-sub wide" data-act="install">홈 화면에 추가</button></div>
-  </section>` : ''}`;
+      <button class="pill wide" data-act="sync">지금 동기화</button>
+      <button class="pill wide" data-act="copylink">다른 기기 연결 링크 복사</button>
+      <button class="btn-text" data-act="disconnect">연결 끊기</button>
+    </div>`
+  : `<form class="stack" data-connect>
+      <label class="field"><span>연결 링크 또는 토큰</span><input name="token" type="password" required autocomplete="off"></label>
+      <label class="field"><span>저장소</span><input name="repo" placeholder="토큰을 넣을 때만" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+      <button class="btn-primary" type="submit">연결</button>
+    </form>`}
+  ${groupHead('백업', { blue: true })}
+  <div class="stack">
+    <button class="pill wide" data-act="export">파일로 내보내기</button>
+    <label class="pill wide">파일에서 가져오기<input type="file" accept="application/json,.json" hidden data-import></label>
+  </div>
+  ${installEvt ? `${groupHead('설치', { blue: true })}<div class="stack"><button class="pill wide" data-act="install">홈 화면에 추가</button></div>` : ''}`;
 }
 
 // ── 입력 시트 ────────────────────────────────────────────
@@ -544,7 +471,7 @@ const ACT = {
     el.classList.add('on');
     navigator.vibrate?.(10);
     const instant = it.type === 'event' || L.spanDays(it.every) < 14;
-    if (instant) setTimeout(() => el.closest('.row')?.classList.add('leaving'), 160);
+    if (instant) setTimeout(() => el.closest('.row')?.classList.add('leaving'), 180);
     setTimeout(() => done(it), mm('(prefers-reduced-motion: reduce)') ? 0 : instant ? 460 : 240);
   },
   edit: el => { const it = store.get(el.dataset.id); if (it) openSheet({ kind: it.type, item: it }); },
@@ -593,14 +520,14 @@ document.addEventListener('change', async e => {
 function route() {
   const h = location.hash;
   if (h.startsWith('#/a/')) return { name: 'area', id: h.slice(4), tab: 'all' };
-  const name = { '#/plan': 'plan', '#/log': 'log', '#/all': 'all', '#/settings': 'settings' }[h] ?? 'home';
-  return { name, tab: name === 'settings' ? 'all' : name };
+  const name = { '#/plan': 'plan', '#/log': 'log', '#/all': 'all', '#/settings': 'settings', '#/tips': 'tips' }[h] ?? 'home';
+  return { name, tab: name === 'settings' || name === 'tips' ? 'all' : name };
 }
 
-const VIEWS = { home: homeView, plan: planView, log: logView, all: allView, settings: settingsView };
+const VIEWS = { home: homeView, plan: planView, log: logView, all: allView, settings: settingsView, tips: tipsView };
 
 let lastRoute = route();
-const depth = r => (r.name === 'area' || r.name === 'settings' ? 1 : 0);
+const depth = r => (['area', 'settings', 'tips'].includes(r.name) ? 1 : 0);
 
 function render(animate = false) {
   const r = route();
