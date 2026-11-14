@@ -1,10 +1,14 @@
 // 영역과 처음 깔리는 기본 항목. 누구에게나 맞는 일반 주기만 둔다.
 // 개인 기록(주행거리, 일정, 메모)은 여기 넣지 않는다. 이 저장소는 공개다.
 export const AREAS = [
-  { id: 'money', name: '돈', link: { title: '손PB 열기', sub: '자산과 현금흐름은 손PB에서 봐요', url: 'https://sonpb.com' } },
+  { id: 'money', name: '돈', link: { title: '손PB 열기', url: 'https://sonpb.com' } },
   { id: 'car', name: '차', metric: { key: 'odometer', name: '주행거리', unit: 'km' } },
+  { id: 'home', name: '집' },
   { id: 'health', name: '건강', metric: { key: 'weight', name: '체중', unit: 'kg' } },
-  { id: 'skin', name: '피부' },
+  { id: 'skin', name: '외모' },
+  { id: 'growth', name: '성장' },
+  { id: 'people', name: '사람' },
+  { id: 'docs', name: '서류' },
 ];
 
 const R = (id, area, title, n, unit, extra = {}) => ({ id, type: 'routine', area, title, every: { n, unit }, ...extra, u: 0 });
@@ -14,6 +18,8 @@ export const starterItems = () => [
   R('t-money-fixed', 'money', '고정 지출과 구독 점검', 6, 'month'),
   R('t-money-credit', 'money', '신용점수 확인', 6, 'month'),
   R('t-money-tax', 'money', '연말정산 준비', 1, 'year', { note: '연금저축과 IRP 납입액 확인' }),
+  R('t-money-housing', 'money', '주택청약 납입 확인', 6, 'month'),
+  R('t-money-insurance', 'money', '보험 보장 점검', 1, 'year'),
 
   R('t-car-oil', 'car', '엔진오일, 오일필터 교환', 1, 'year', { kmEvery: 7000, note: '시내 단거리 위주면 7,000~8,000km 또는 1년 중 먼저 오는 쪽' }),
   R('t-car-dpf', 'car', '고속도로 30분 주행', 2, 'week', { note: '디젤차. 시내만 타면 매연 필터(DPF)에 그을음이 쌓임' }),
@@ -28,14 +34,43 @@ export const starterItems = () => [
   R('t-car-battery', 'car', '배터리 교체', 4, 'year'),
   R('t-car-atf', 'car', '변속기 오일 점검', 5, 'year', { kmEvery: 100000 }),
   R('t-car-coolant', 'car', '냉각수 교환', 10, 'year', { kmEvery: 200000, note: '첫 교환은 10년 또는 20만km, 그 뒤로는 2년 또는 4만km' }),
+  R('t-car-wash', 'car', '세차', 1, 'month'),
   R('t-car-insurance', 'car', '자동차 보험 갱신', 1, 'year'),
   R('t-car-inspect', 'car', '자동차 정기검사', 2, 'year'),
+
+  R('t-home-clean', 'home', '청소', 1, 'week'),
+  R('t-home-bedding', 'home', '침구 세탁', 2, 'week'),
+  R('t-home-bills', 'home', '관리비와 공과금 확인', 1, 'month'),
+  R('t-home-washer', 'home', '세탁조 청소', 3, 'month'),
+  R('t-home-showerfilter', 'home', '샤워기 필터 교체', 3, 'month'),
+  R('t-home-aircon', 'home', '에어컨 필터 청소', 6, 'month'),
 
   R('t-health-checkup', 'health', '건강검진', 2, 'year'),
   R('t-health-scaling', 'health', '치과 스케일링', 1, 'year', { note: '건강보험 적용은 1년에 한 번' }),
   R('t-health-exercise', 'health', '운동', 2, 'day'),
   R('t-health-weight', 'health', '체중 재기', 1, 'week'),
+  R('t-health-toothbrush', 'health', '칫솔 교체', 3, 'month'),
+  R('t-health-flu', 'health', '독감 예방접종', 1, 'year'),
 
   R('t-skin-sunscreen', 'skin', '선크림 바르기', 1, 'day'),
   R('t-skin-pillow', 'skin', '베개 커버 세탁', 1, 'week'),
+  R('t-skin-razor', 'skin', '면도날 교체', 3, 'week'),
+  R('t-skin-hair', 'skin', '미용실', 1, 'month'),
+  R('t-skin-clothes', 'skin', '계절 옷 정리와 드라이클리닝', 6, 'month'),
+
+  R('t-growth-week', 'growth', '한 주 돌아보기', 1, 'week'),
+  R('t-growth-book', 'growth', '책 한 권 읽기', 1, 'month'),
+  R('t-growth-goal', 'growth', '분기 목표 점검', 3, 'month'),
+  R('t-growth-profile', 'growth', '이력서와 프로필 고치기', 6, 'month'),
+
+  R('t-people-parents', 'people', '부모님께 연락', 1, 'week'),
+  R('t-people-friends', 'people', '오래 못 본 사람에게 연락', 1, 'month'),
+  R('t-people-parentscheck', 'people', '부모님 건강검진 챙기기', 1, 'year'),
+
+  R('t-docs-backup', 'docs', '사진과 자료 백업', 3, 'month'),
+  R('t-docs-password', 'docs', '비밀번호와 2단계 인증 점검', 6, 'month'),
+  R('t-docs-cert', 'docs', '공동인증서 갱신', 1, 'year'),
+  R('t-docs-reserve', 'docs', '예비군 훈련', 1, 'year'),
+  R('t-docs-license', 'docs', '운전면허 갱신', 10, 'year'),
+  R('t-docs-passport', 'docs', '여권 갱신', 10, 'year'),
 ];

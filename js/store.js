@@ -56,7 +56,11 @@ async function push(text, sha) {
 export const store = {
   init() {
     items = read(KEY)?.items;
-    if (!Array.isArray(items)) { items = starterItems(); persist(); }
+    if (!Array.isArray(items)) items = [];
+    // 기본 항목 가운데 아직 없는 것만 채운다. 지운 항목은 del 표시가 남아 있어 다시 생기지 않는다.
+    const have = new Set(items.map(it => it.id));
+    const missing = starterItems().filter(it => !have.has(it.id));
+    if (missing.length) { items.push(...missing); persist(); }
     cfg = read(CFG);
     if (cfg) { state.status = 'idle'; this.sync(); }
   },

@@ -16,7 +16,10 @@ const ICON = {
   money: '<path d="M19 9V6a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V7"/><path d="M16.5 14h.01"/>',
   car: '<path d="M5 11l1.6-4.6A2 2 0 0 1 8.5 5h7a2 2 0 0 1 1.9 1.4L19 11"/><rect x="3" y="11" width="18" height="6" rx="2"/><path d="M6 17v2M18 17v2M7.5 14h.01M16.5 14h.01"/>',
   health: '<path d="M12 20.5s-8-4.6-8-10.7A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 8 2.4c0 6.1-8 10.7-8 10.7z"/>',
-  skin: '<path d="M12 3s6.5 6.3 6.5 11a6.5 6.5 0 0 1-13 0C5.5 9.3 12 3 12 3z"/>',
+  skin: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/>',
+  growth: '<path d="M4 20h16M5 15l4-4 3 3 6-7"/><path d="M14 7h4v4"/>',
+  people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>',
+  docs: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
   settings: '<path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.5"/><circle cx="8" cy="17" r="2.5"/>',
   chevron: '<path d="m9 6 6 6-6 6"/>',
   back: '<path d="m15 6-6 6 6 6"/>',
@@ -89,12 +92,6 @@ function syncLine() {
   return text ? `<p class="t-cap weak foot">${esc(text)}</p>` : '';
 }
 
-function navView(r) {
-  const tab = (href, name, ic, on) =>
-    `<a href="${href}" class="${on ? 'on' : ''}"${on ? ' aria-current="page"' : ''}>${icon(ic)}<span>${name}</span></a>`;
-  return `<nav class="tabbar">${tab('#/', '홈', 'home', r.name === 'home')}${AREAS.map(a => tab(`#/a/${a.id}`, a.name, a.id, r.id === a.id)).join('')}</nav>`;
-}
-
 // ── 홈 ───────────────────────────────────────────────────
 function homeView() {
   const due = dueList(), up = upcoming().slice(0, 5);
@@ -146,10 +143,10 @@ function areaView(a) {
   const spent = logs.filter(l => l.date.startsWith(now.slice(0, 4))).reduce((s, l) => s + (l.cost || 0), 0);
   const shown = ui.allLogs ? logs : logs.slice(0, 5);
   return `
-  <header class="top"><h1 class="t-title">${a.name}</h1></header>
+  <header class="top left"><a class="icon-btn back" href="#/" aria-label="뒤로">${icon('back')}</a><h1 class="t-title">${a.name}</h1></header>
   ${a.metric ? metricBlock(a) : ''}
   ${a.link ? `<ul class="rows"><li class="row"><a class="row-main" href="${a.link.url}" target="_blank" rel="noopener">
-      <span class="row-text"><span class="t-item">${a.link.title}</span><span class="t-cap weak">${a.link.sub}</span></span>
+      <span class="row-text"><span class="t-item">${a.link.title}</span></span>
       <span class="chev">${icon('chevron', 16)}</span></a></li></ul><div class="band"></div>` : ''}
   <section class="sec">
     ${secHead('주기 관리', 'routine', a.id)}
@@ -184,8 +181,7 @@ function settingsView() {
         <button class="btn-sub wide" data-act="copylink">다른 기기 연결 링크 복사</button>
         <button class="btn-text" data-act="disconnect">연결 끊기</button>
       </div>`
-    : `<p class="t-body muted lead">비공개 저장소에 연결하면 폰과 PC에서 같은 내용을 봐요.</p>
-      <form class="stack" data-connect>
+    : `<form class="stack" data-connect>
         <label class="field"><span class="t-cap muted">저장소</span><input name="repo" placeholder="계정/저장소" required autocapitalize="off" autocomplete="off" spellcheck="false"></label>
         <label class="field"><span class="t-cap muted">토큰</span><input name="token" type="password" required autocomplete="off"></label>
         <button class="btn-primary" type="submit">연결</button>
@@ -199,12 +195,11 @@ function settingsView() {
       <label class="btn-sub wide">파일에서 가져오기<input type="file" accept="application/json,.json" hidden data-import></label>
     </div>
   </section>
-  <div class="band"></div>
+  ${installEvt ? `<div class="band"></div>
   <section class="sec">
-    <h2 class="t-section">홈 화면에 추가</h2>
-    <p class="t-body muted lead">아이폰은 사파리 공유 버튼에서 '홈 화면에 추가', 안드로이드는 크롬 메뉴에서 '앱 설치'를 누르면 돼요.</p>
-    ${installEvt ? `<div class="stack"><button class="btn-sub wide" data-act="install">이 기기에 설치</button></div>` : ''}
-  </section>`;
+    <h2 class="t-section">설치</h2>
+    <div class="stack"><button class="btn-sub wide" data-act="install">홈 화면에 추가</button></div>
+  </section>` : ''}`;
 }
 
 // ── 입력 시트 ────────────────────────────────────────────
@@ -368,7 +363,7 @@ function route() {
 function render() {
   const r = route();
   const area = AREAS.find(a => a.id === r.id);
-  app.innerHTML = (area ? areaView(area) : r.name === 'settings' ? settingsView() : homeView()) + navView(r);
+  app.innerHTML = (area ? areaView(area) : r.name === 'settings' ? settingsView() : homeView());
 }
 
 store.init();
