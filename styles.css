@@ -55,6 +55,7 @@ ul { list-style: none; padding: 0; }
 .sec > .t-section + .rows, .sec-head + .rows { margin-top: 4px; }
 .band { height: 12px; margin-top: 20px; background: var(--band); }
 .empty { padding: 12px 0; }
+.tip-body { white-space: pre-line; }
 .lead { margin-top: 8px; }
 .spent { margin-top: 4px; }
 .foot { padding: 24px 20px 0; text-align: center; }
@@ -117,6 +118,8 @@ ul { list-style: none; padding: 0; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
 .sheet .btn-primary { margin-top: 8px; }
 .sheet .btn-text { margin-top: -8px; }
+.sheet .btn-sub.wide + .btn-text { margin-top: -8px; }
+.sheet .btn-primary + .btn-sub.wide { margin-top: -8px; }
 
 #toast {
   position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 20;

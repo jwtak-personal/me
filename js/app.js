@@ -95,6 +95,20 @@ function syncLine() {
 }
 
 // ── 홈 ───────────────────────────────────────────────────
+// Claude 가 점검 때 data.json 에 넣는 제안. 읽고 반영하거나 넘기면 홈에서 사라진다.
+const TIP_KIND = { fact: '새로 알게 된 것', auto: '자동으로 할 수 있는 것', better: '더 잘할 수 있는 것' };
+const openTips = () => store.list('tip').filter(t => !t.status).sort((a, b) => (a.date < b.date ? 1 : -1));
+
+function tipSection() {
+  const tips = openTips();
+  if (!tips.length) return '';
+  return `<div class="band"></div>
+  <section class="sec">
+    <h2 class="t-section">Claude 제안 ${tips.length}개</h2>
+    <ul class="rows">${tips.map(t => itemRow(t, { sub: TIP_KIND[t.kind] ?? '', right: t.reply ? '메모 있음' : '', check: false })).join('')}</ul>
+  </section>`;
+}
+
 function homeView() {
   const due = dueList(), up = upcoming().slice(0, 5);
   return `
@@ -104,6 +118,7 @@ function homeView() {
     <h1 class="t-hero">${due.length ? `챙길 것 ${due.length}개` : '오늘 챙길 것이 없어요'}</h1>
   </section>
   ${due.length ? `<ul class="rows">${due.map(d => itemRow(d.it, { sub: areaName(d.it.area), right: d.text, level: d.level })).join('')}</ul>` : ''}
+  ${tipSection()}
   <div class="band"></div>
   <section class="sec">
     <h2 class="t-section">다가오는 일정</h2>
@@ -250,6 +265,12 @@ function sheetHtml(c) {
       + field('언제까지', `<input name="by" type="date" value="${val(it?.by)}">`)
       + field('진행률', `<input name="pct" type="number" inputmode="numeric" min="0" max="100" placeholder="%" value="${val(it?.pct)}">`)
       + field('메모', `<textarea name="note" rows="4">${val(it?.note)}</textarea>`);
+  } else if (c.kind === 'tip') {
+    title = esc(it.title);
+    submit = '반영했어요';
+    body = `<p class="t-cap weak">${TIP_KIND[it.kind] ?? ''}</p>
+      <p class="t-body tip-body">${esc(it.body)}</p>`
+      + field('Claude에게 남길 메모', `<textarea name="reply" rows="3">${val(it.reply)}</textarea>`);
   } else if (c.kind === 'done') {
     title = esc(it.title);
     submit = '완료';
@@ -267,7 +288,9 @@ function sheetHtml(c) {
     <div class="sheet-head"><h2 class="t-section">${title}</h2><button type="button" class="icon-btn" data-act="close" aria-label="닫기">${icon('close')}</button></div>
     ${body}
     <button class="btn-primary" type="submit">${submit}</button>
-    ${it && c.kind !== 'done' ? `<button type="button" class="btn-text" data-act="delete">삭제</button>` : ''}
+    ${c.kind === 'tip' ? `<button type="button" class="btn-sub wide" data-act="tiplater">메모만 저장</button>
+    <button type="button" class="btn-text" data-act="tipskip">필요 없어요</button>`
+    : it && c.kind !== 'done' ? `<button type="button" class="btn-text" data-act="delete">삭제</button>` : ''}
   </form>`;
 }
 
@@ -296,6 +319,9 @@ function submitSheet(fd) {
     store.put({ ...(c.item ?? { id: uid(), type: 'log', area: c.area }), title: v('title'), date: v('date'), cost: nv('cost'), note });
   } else if (c.kind === 'goal') {
     store.put({ ...(c.item ?? { id: uid(), type: 'goal', area: c.area }), title: v('title'), by: v('by') || undefined, pct: nv('pct'), note });
+  } else if (c.kind === 'tip') {
+    saveTip('done', fd);
+    toast('반영한 것으로 남겼어요');
   } else if (c.kind === 'done') {
     const r = c.item, date = v('date'), km = nv('km');
     if (km != null && km > (curKm() ?? -1)) store.put({ id: uid(), type: 'reading', key: 'odometer', date, value: km });
@@ -329,7 +355,15 @@ function done(it) {
   openSheet({ kind: 'done', item: it });
 }
 
+// status 가 비어 있으면 아직 홈에 떠 있는 제안이다
+function saveTip(status, fd = new FormData(dlg.querySelector('form'))) {
+  const reply = String(fd.get('reply') ?? '').trim() || undefined;
+  store.put({ ...sheetCtx.item, reply, ...(status ? { status, closed: L.today() } : {}) });
+}
+
 const ACT = {
+  tiplater: () => { saveTip(null); dlg.close(); toast('메모를 남겼어요'); },
+  tipskip: () => { saveTip('skip'); dlg.close(); toast('넘겼어요'); },
   done: el => { const it = store.get(el.dataset.id); if (it) done(it); },
   edit: el => { const it = store.get(el.dataset.id); if (it) openSheet({ kind: it.type, item: it }); },
   add: el => openSheet({ kind: el.dataset.kind, area: el.dataset.area }),

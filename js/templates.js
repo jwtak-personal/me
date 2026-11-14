@@ -89,6 +89,7 @@ export const starterItems = () => [
   R('t-growth-goal', 'growth', '분기 목표 점검', 3, 'month'),
   R('t-growth-profile', 'growth', '이력서와 프로필 고치기', 6, 'month'),
   R('t-growth-year', 'growth', '한 해 돌아보기와 새해 목표', 1, 'year'),
+  R('t-growth-claude', 'growth', 'Claude와 나 관리 점검', 1, 'month', { note: '새 세션에서 "나 관리 점검"' }),
 
   R('t-people-parents', 'people', '부모님께 연락', 1, 'week'),
   R('t-people-friends', 'people', '오래 못 본 사람에게 연락', 1, 'month'),
