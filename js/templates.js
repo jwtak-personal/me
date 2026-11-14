@@ -3,13 +3,14 @@
 export const AREAS = [
   { id: 'money', name: '돈', link: { title: '손PB 열기', url: 'https://sonpb.com' } },
   { id: 'car', name: '차', metric: { key: 'odometer', name: '주행거리', unit: 'km' } },
-  { id: 'home', name: '집' },
+  { id: 'home', name: '생활' },
   { id: 'health', name: '건강', metric: { key: 'weight', name: '체중', unit: 'kg' } },
-  { id: 'skin', name: '외모' },
+  { id: 'skin', name: '관리' },
   { id: 'rest', name: '쉼' },
-  { id: 'growth', name: '성장' },
+  { id: 'growth', name: '성장', goals: true },
   { id: 'people', name: '사람' },
   { id: 'docs', name: '서류' },
+  { id: 'sonpb', name: '손PB' },
 ];
 
 const R = (id, area, title, n, unit, extra = {}) => ({ id, type: 'routine', area, title, every: { n, unit }, ...extra, u: 0 });
@@ -19,6 +20,7 @@ export const starterItems = () => [
   R('t-money-fixed', 'money', '고정 지출과 구독 점검', 6, 'month'),
   R('t-money-credit', 'money', '신용점수 확인', 6, 'month'),
   R('t-money-tax', 'money', '연말정산 준비', 1, 'year', { last: '2026-01-15', note: '간소화 서비스는 매년 1월 15일에 열림. 연금저축과 IRP 납입액 확인' }),
+  R('t-money-food', 'money', '식비와 배달비 돌아보기', 1, 'month'),
   R('t-money-emergency', 'money', '비상금 점검', 6, 'month', { note: '생활비 3~6개월치' }),
   R('t-money-rate', 'money', '대출 금리 점검', 6, 'month', { note: '소득이나 신용점수가 오르면 금리인하요구권. 상품에 따라 안 될 수 있음' }),
   R('t-money-accounts', 'money', '안 쓰는 계좌와 카드 정리', 1, 'year', { note: '계좌정보통합관리 서비스의 내 계좌 한눈에' }),
@@ -48,6 +50,7 @@ export const starterItems = () => [
   R('t-car-inspect', 'car', '자동차 정기검사', 2, 'year'),
 
   R('t-home-clean', 'home', '청소', 1, 'week'),
+  R('t-home-grocery', 'home', '장보기', 1, 'week'),
   R('t-home-bedding', 'home', '침구 세탁', 2, 'week'),
   R('t-home-bills', 'home', '관리비와 공과금 확인', 1, 'month'),
   R('t-home-washer', 'home', '세탁조 청소', 3, 'month'),
@@ -72,6 +75,9 @@ export const starterItems = () => [
   R('t-skin-razor', 'skin', '면도날 교체', 3, 'week'),
   R('t-skin-hair', 'skin', '미용실', 1, 'month'),
   R('t-skin-clothes', 'skin', '계절 옷 정리와 드라이클리닝', 6, 'month'),
+  R('t-skin-derm', 'skin', '피부과', 6, 'month'),
+  R('t-skin-scalp', 'skin', '두피와 탈모 점검', 6, 'month'),
+  R('t-skin-glasses', 'skin', '안경이나 렌즈 교체', 1, 'year'),
 
   R('t-rest-dayoff', 'rest', '일 없이 쉬는 날', 1, 'week'),
   R('t-rest-hobby', 'rest', '취미', 2, 'week'),
@@ -101,4 +107,11 @@ export const starterItems = () => [
   R('t-docs-reserve', 'docs', '예비군 훈련', 1, 'year'),
   R('t-docs-license', 'docs', '운전면허 갱신', 10, 'year'),
   R('t-docs-passport', 'docs', '여권 갱신', 10, 'year'),
+
+  R('t-sonpb-bills', 'sonpb', '서버와 서비스 요금 확인', 1, 'month'),
+  R('t-sonpb-backup', 'sonpb', 'DB 백업과 복구 확인', 3, 'month'),
+  R('t-sonpb-deps', 'sonpb', '패키지 보안 업데이트', 3, 'month'),
+  R('t-sonpb-keys', 'sonpb', '비밀키와 토큰 만료 확인', 6, 'month'),
+  R('t-sonpb-domain', 'sonpb', '도메인 갱신', 1, 'year'),
+  R('t-sonpb-policy', 'sonpb', '개인정보처리방침과 약관 점검', 1, 'year'),
 ];

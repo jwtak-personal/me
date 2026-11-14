@@ -20,6 +20,7 @@ const ICON = {
   growth: '<path d="M4 20h16M5 15l4-4 3 3 6-7"/><path d="M14 7h4v4"/>',
   people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>',
   rest: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  sonpb: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/>',
   docs: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
   settings: '<path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.5"/><circle cx="8" cy="17" r="2.5"/>',
   chevron: '<path d="m9 6 6 6-6 6"/>',
@@ -135,6 +136,14 @@ function metricBlock(a) {
   </section><div class="band"></div>`;
 }
 
+function goalSection(a) {
+  const goals = store.list('goal', a.id).sort((x, y) => ((x.by || '9') < (y.by || '9') ? -1 : 1));
+  return `<section class="sec">
+    ${secHead('목표', 'goal', a.id)}
+    ${goals.length ? `<ul class="rows">${goals.map(g => itemRow(g, { sub: g.by ? `${L.dateText(g.by, false)}까지` : '', right: g.pct != null ? `${g.pct}%` : '', level: 'today', check: false })).join('')}</ul>` : empty('아직 목표가 없어요')}
+  </section><div class="band"></div>`;
+}
+
 function areaView(a) {
   const now = L.today(), km = curKm();
   const rs = store.list('routine', a.id).map(r => ({ r, st: L.routineStatus(r, now, km) }))
@@ -149,6 +158,7 @@ function areaView(a) {
   ${a.link ? `<ul class="rows"><li class="row"><a class="row-main" href="${a.link.url}" target="_blank" rel="noopener">
       <span class="row-text"><span class="t-item">${a.link.title}</span></span>
       <span class="chev">${icon('chevron', 16)}</span></a></li></ul><div class="band"></div>` : ''}
+  ${a.goals ? goalSection(a) : ''}
   <section class="sec">
     ${secHead('주기 관리', 'routine', a.id)}
     ${rs.length ? `<ul class="rows">${rs.map(({ r, st }) => itemRow(r, { sub: L.everyText(r), right: L.statusText(st, r), level: st.level })).join('')}</ul>` : empty('주기로 챙길 항목을 추가해 보세요')}
@@ -234,6 +244,12 @@ function sheetHtml(c) {
       + field('날짜', `<input name="date" type="date" required max="${now}" value="${val(it?.date ?? now)}">`)
       + field('비용', `<input name="cost" type="number" inputmode="numeric" min="0" placeholder="원" value="${val(it?.cost)}">`)
       + field('메모', `<textarea name="note" rows="3">${val(it?.note)}</textarea>`);
+  } else if (c.kind === 'goal') {
+    title = it ? '목표' : '목표 추가';
+    body = field('이름', `<input name="title" required value="${val(it?.title)}">`)
+      + field('언제까지', `<input name="by" type="date" value="${val(it?.by)}">`)
+      + field('진행률', `<input name="pct" type="number" inputmode="numeric" min="0" max="100" placeholder="%" value="${val(it?.pct)}">`)
+      + field('메모', `<textarea name="note" rows="4">${val(it?.note)}</textarea>`);
   } else if (c.kind === 'done') {
     title = esc(it.title);
     submit = '완료';
@@ -278,6 +294,8 @@ function submitSheet(fd) {
     store.put({ ...(c.item ?? { id: uid(), type: 'event', area: c.area }), title: v('title'), date: v('date'), note });
   } else if (c.kind === 'log') {
     store.put({ ...(c.item ?? { id: uid(), type: 'log', area: c.area }), title: v('title'), date: v('date'), cost: nv('cost'), note });
+  } else if (c.kind === 'goal') {
+    store.put({ ...(c.item ?? { id: uid(), type: 'goal', area: c.area }), title: v('title'), by: v('by') || undefined, pct: nv('pct'), note });
   } else if (c.kind === 'done') {
     const r = c.item, date = v('date'), km = nv('km');
     if (km != null && km > (curKm() ?? -1)) store.put({ id: uid(), type: 'reading', key: 'odometer', date, value: km });
