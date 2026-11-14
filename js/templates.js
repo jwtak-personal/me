@@ -1,7 +1,7 @@
 // 영역과 처음 깔리는 기본 항목. 누구에게나 맞는 일반 주기만 둔다.
 // 개인 기록(주행거리, 일정, 메모)은 여기 넣지 않는다. 이 저장소는 공개다.
 export const AREAS = [
-  { id: 'money', name: '돈', link: { title: '손PB 열기', url: 'https://sonpb.com' } },
+  { id: 'money', name: '돈' },
   { id: 'car', name: '차', metric: { key: 'odometer', name: '주행거리', unit: 'km' } },
   { id: 'home', name: '생활' },
   { id: 'health', name: '건강', metric: { key: 'weight', name: '체중', unit: 'kg' } },
@@ -11,6 +11,25 @@ export const AREAS = [
   { id: 'people', name: '사람' },
   { id: 'docs', name: '서류' },
   { id: 'sonpb', name: '손PB' },
+];
+
+// 기본 바로가기: 공공기관이나 협회가 운영하는 공식 사이트
+const LINKS = [
+  ['sonpb', 'money', '손PB', 'https://sonpb.com', '자산과 현금흐름'],
+  ['credit4u', 'money', '내보험다보여', 'https://www.credit4u.or.kr', '가입한 보험 전부 조회 (한국신용정보원)'],
+  ['insure', 'money', '내보험찾아줌', 'https://cont.insure.or.kr', '숨은 보험금 조회 (생명보험협회, 손해보험협회)'],
+  ['payinfo', 'money', '계좌정보통합관리', 'https://www.payinfo.or.kr', '안 쓰는 계좌 조회와 해지 (금융결제원)'],
+  ['hometax', 'money', '홈택스', 'https://www.hometax.go.kr', '연말정산, 종합소득세'],
+  ['applyhome', 'money', '청약홈', 'https://www.applyhome.co.kr', '청약통장, 주택 청약'],
+  ['cyberts', 'car', '자동차검사 예약', 'https://www.cyberts.kr', '정기검사 조회와 예약 (한국교통안전공단)'],
+  ['car365', 'car', '자동차365', 'https://www.car365.go.kr', '내 차 정보와 이력'],
+  ['recall', 'car', '자동차리콜센터', 'https://www.car.go.kr', '리콜 조회'],
+  ['iros', 'home', '인터넷등기소', 'https://www.iros.go.kr', '등기부등본'],
+  ['khug', 'home', '주택도시보증공사', 'https://www.khug.or.kr', '전세보증금 반환보증'],
+  ['nhis', 'health', '국민건강보험', 'https://www.nhis.or.kr', '건강검진 대상과 예약, 자격득실'],
+  ['silson24', 'health', '실손24', 'https://play.google.com/store/search?q=%EC%8B%A4%EC%86%9024&c=apps', '실손보험 청구 앱 (보험개발원)'],
+  ['mma', 'docs', '병무청', 'https://www.mma.go.kr', '소집 통지, 국외여행허가'],
+  ['gov24', 'docs', '정부24', 'https://www.gov.kr', '등본, 초본, 각종 증명서'],
 ];
 
 const R = (id, area, title, n, unit, extra = {}) => ({ id, type: 'routine', area, title, every: { n, unit }, ...extra, u: 0 });
@@ -108,6 +127,8 @@ export const starterItems = () => [
   R('t-docs-reserve', 'docs', '예비군 훈련', 1, 'year'),
   R('t-docs-license', 'docs', '운전면허 갱신', 10, 'year'),
   R('t-docs-passport', 'docs', '여권 갱신', 10, 'year'),
+
+  ...LINKS.map(([id, area, title, url, note], i) => ({ id: `l-${id}`, type: 'link', area, title, url, note, order: i, u: 0 })),
 
   R('t-sonpb-bills', 'sonpb', '서버와 서비스 요금 확인', 1, 'month'),
   R('t-sonpb-backup', 'sonpb', 'DB 백업과 복구 확인', 3, 'month'),

@@ -1,6 +1,6 @@
-import { AREAS } from './templates.js?v=20261114b';
-import * as L from './logic.js?v=20261114b';
-import { store } from './store.js?v=20261114b';
+import { AREAS } from './templates.js?v=20261114c';
+import * as L from './logic.js?v=20261114c';
+import { store } from './store.js?v=20261114c';
 
 const app = document.getElementById('app');
 const dlg = document.getElementById('sheet');
@@ -34,6 +34,8 @@ const ICON = {
   receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
   star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/>',
+  pencil: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
   logbook: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>',
   grid: '<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>',
 };
@@ -228,6 +230,7 @@ function allView() {
     ${navRow('#/plan', 'calendar', 'cal', '일정', upcoming().length || '')}
     ${navRow('#/tips', 'spark', 'tip', 'Claude 제안', openTips().length || '')}
     ${navRow('#/log', 'logbook', 'done', '기록')}
+    ${navRow('#/links', 'link', 'tip', '바로가기', store.list('link').length || '')}
   </ul>
   <div class="list-gap"></div>
   <ul class="list">
@@ -239,6 +242,26 @@ function allView() {
   </ul>
   <div class="list-gap"></div>
   <ul class="list">${navRow('#/settings', 'settings', 'gray', '설정')}</ul>`;
+}
+
+// ── 바로가기 ─────────────────────────────────────────────
+const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
+const safeUrl = u => (/^https?:\/\//.test(u) ? u : '#');
+const linkRows = list => `<ul class="rows">${list.map(l => `<li class="row">
+    <a class="row-main" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener">
+      <span class="row-text"><span class="row-title">${esc(l.title)}</span><span class="row-sub">${esc(l.note || host(l.url))}</span></span>
+    </a>
+    <button class="add-mini" data-act="edit" data-id="${l.id}" aria-label="${esc(l.title)} 고치기">${icon('pencil', 18, 2)}</button>
+  </li>`).join('')}</ul>`;
+const linksOf = area => store.list('link', area).sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || (a.title < b.title ? -1 : 1));
+
+function linksView() {
+  const groups = AREAS.map(a => ({ a, list: linksOf(a.id) })).filter(g => g.list.length);
+  return `
+  ${navBar('#/all')}
+  ${pageTitle('바로가기', 'link', 'tip')}
+  ${groups.length ? groups.map(g => `${groupHead(g.a.name, { g: g.a.id, color: g.a.id })}${linkRows(g.list)}`).join('') : empty('저장한 사이트가 없어요')}
+  ${fab('link', '사이트 추가')}`;
 }
 
 // ── Claude 제안 ──────────────────────────────────────────
@@ -278,7 +301,7 @@ function areaView(a) {
   ${navBar('#/all')}
   ${pageTitle(a.name, a.id, a.id, esc(s.text))}
   ${a.metric ? metricBlock(a) : ''}
-  ${a.link ? `<a class="note-box link-box" href="${a.link.url}" target="_blank" rel="noopener">${glyph(a.id, a.id, 20)}<span>${a.link.title}</span>${icon('chevron', 16)}</a>` : ''}
+  ${linksOf(a.id).length ? `${groupHead('바로가기', { blue: true, add: { kind: 'link', area: a.id } })}${linkRows(linksOf(a.id))}` : ''}
   ${a.goals ? goalSection(a) : ''}
   ${groupHead('주기 관리', { blue: true, add: { kind: 'routine', area: a.id } })}
   ${rs.length ? `<ul class="rows">${rs.map(({ r, st }) => taskRow(r, { sub: L.everyText(r), meta: L.statusText(st, r), metaCls: STATUS_CLS[st.level] ?? '' })).join('')}</ul>` : empty('주기로 챙길 항목을 추가해 보세요')}
@@ -332,7 +355,7 @@ const areaField = () => field('영역', `<select name="area">${AREAS.map(a => `<
 function sheetHtml(c) {
   const it = c.item, now = L.today();
   let title, body, submit = '저장';
-  const pickArea = !it && !c.area && ['routine', 'event', 'log'].includes(c.kind);
+  const pickArea = !it && !c.area && ['routine', 'event', 'log', 'link'].includes(c.kind);
   if (c.kind === 'routine') {
     const r = it ?? { every: { n: 1, unit: 'month' } };
     const car = (it?.area ?? c.area) === 'car';
@@ -359,6 +382,12 @@ function sheetHtml(c) {
       + field('날짜', `<input name="date" type="date" required max="${now}" value="${val(it?.date ?? now)}">`)
       + field('비용', `<input name="cost" type="number" inputmode="numeric" min="0" placeholder="원" value="${val(it?.cost)}">`)
       + field('메모', `<textarea name="note" rows="3">${val(it?.note)}</textarea>`);
+  } else if (c.kind === 'link') {
+    title = it ? '바로가기' : '사이트 추가';
+    body = field('이름', `<input name="title" required value="${val(it?.title)}">`)
+      + field('주소', `<input name="url" type="url" inputmode="url" required placeholder="https://" autocapitalize="off" spellcheck="false" value="${val(it?.url)}">`)
+      + (pickArea ? areaField() : '')
+      + field('메모', `<input name="note" value="${val(it?.note)}">`);
   } else if (c.kind === 'goal') {
     title = it ? '목표' : '목표 추가';
     body = field('이름', `<input name="title" required value="${val(it?.title)}">`)
@@ -418,6 +447,9 @@ function submitSheet(fd) {
     store.put({ ...(c.item ?? { id: uid(), type: 'event', area }), title: v('title'), date: v('date'), note });
   } else if (c.kind === 'log') {
     store.put({ ...(c.item ?? { id: uid(), type: 'log', area }), title: v('title'), date: v('date'), cost: nv('cost'), note });
+  } else if (c.kind === 'link') {
+    const url = /^https?:\/\//.test(v('url')) ? v('url') : `https://${v('url')}`;
+    store.put({ ...(c.item ?? { id: uid(), type: 'link', area }), title: v('title'), url, note });
   } else if (c.kind === 'goal') {
     store.put({ ...(c.item ?? { id: uid(), type: 'goal', area }), title: v('title'), by: v('by') || undefined, pct: nv('pct'), note });
   } else if (c.kind === 'tip') {
@@ -520,14 +552,14 @@ document.addEventListener('change', async e => {
 function route() {
   const h = location.hash;
   if (h.startsWith('#/a/')) return { name: 'area', id: h.slice(4), tab: 'all' };
-  const name = { '#/plan': 'plan', '#/log': 'log', '#/all': 'all', '#/settings': 'settings', '#/tips': 'tips' }[h] ?? 'home';
-  return { name, tab: name === 'settings' || name === 'tips' ? 'all' : name };
+  const name = { '#/plan': 'plan', '#/log': 'log', '#/all': 'all', '#/settings': 'settings', '#/tips': 'tips', '#/links': 'links' }[h] ?? 'home';
+  return { name, tab: ['settings', 'tips', 'links'].includes(name) ? 'all' : name };
 }
 
-const VIEWS = { home: homeView, plan: planView, log: logView, all: allView, settings: settingsView, tips: tipsView };
+const VIEWS = { home: homeView, plan: planView, log: logView, all: allView, settings: settingsView, tips: tipsView, links: linksView };
 
 let lastRoute = route();
-const depth = r => (['area', 'settings', 'tips'].includes(r.name) ? 1 : 0);
+const depth = r => (['area', 'settings', 'tips', 'links'].includes(r.name) ? 1 : 0);
 
 function render(animate = false) {
   const r = route();
