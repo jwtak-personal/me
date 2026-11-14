@@ -27,8 +27,10 @@ const ICON = {
   back: '<path d="m15 6-6 6 6 6"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   check: '<path d="m6 12.5 4 4 8-9"/>',
-  spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.5 2.5M15.2 15.2l2.5 2.5M6.3 17.7l2.5-2.5M15.2 8.8l2.5-2.5"/>',
+  spark: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  grid: '<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>',
 };
 const icon = (name, size = 24, sw = 2) =>
   `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`;
@@ -37,7 +39,7 @@ const icon = (name, size = 24, sw = 2) =>
 // CSP 가 인라인 style 을 막아서 색은 클래스로 준다.
 const iconCircle = (name, colorKey = name) => `<span class="icon-circle c-${colorKey}">${icon(name, 22)}</span>`;
 
-const ui = { allLogs: false };
+const ui = { allLogs: false, allDue: false };
 let sheetCtx = null;
 let installEvt = null;
 
@@ -124,7 +126,7 @@ function progress(left) {
   const pct = Math.round((done / total) * 100);
   return `<div class="progress" role="img" aria-label="오늘 ${total}개 중 ${done}개 완료">
     <div class="bar"><i class="w${Math.round(pct / 5) * 5}"></i></div>
-    <p class="t-cap weak">${done ? `${total}개 중 <b>${done}개</b> 했어요` : '하나씩 눌러서 끝내 보세요'}</p>
+    <p class="t-cap weak">${total}개 중 <b>${done}개</b> 했어요</p>
   </div>`;
 }
 
@@ -149,21 +151,112 @@ function doneToday() {
     + store.list('routine').filter(r => r.last === now && L.spanDays(r.every) < 14).length;
 }
 
+const won = n => `${num(n)}원`;
+const monthSpent = () => {
+  const ym = L.today().slice(0, 7);
+  return store.list('log').filter(l => l.date.startsWith(ym)).reduce((t, l) => t + (l.cost || 0), 0);
+};
+const unknownCount = () => {
+  const now = L.today(), km = curKm();
+  return store.list('routine').filter(r => L.routineStatus(r, now, km).level === 'unknown').length;
+};
+
+function tile(href, label, value, sub) {
+  return `<a class="tile" href="${href}">
+    <span class="t-cap weak">${label}</span>
+    <span class="t-section">${value}</span>
+    ${sub ? `<span class="t-cap weak">${sub}</span>` : ''}
+  </a>`;
+}
+
+function eventRows(list) {
+  const now = L.today();
+  return `<ul class="rows">${list.map(e => {
+    const st = L.eventStatus(e, now);
+    return itemRow(e, { sub: L.dateText(e.date), right: st.text, level: st.daysLeft <= 7 ? 'soon' : 'ok', check: false, lead: iconCircle(e.area) });
+  }).join('')}</ul>`;
+}
+
 function homeView() {
-  const due = dueList(), up = upcoming().slice(0, 5);
+  const due = dueList(), up = upcoming();
+  const shown = ui.allDue ? due : due.slice(0, 5);
+  const next = up[0], km = latest('odometer');
   return `
-  <header class="top"><h1 class="t-title">나 관리</h1><a class="icon-btn" href="#/settings" aria-label="설정">${icon('settings')}</a></header>
+  <header class="top"><h1 class="t-title">나 관리</h1></header>
   <section class="sec hero">
     <p class="t-cap weak">${L.dateText(L.today())}</p>
     <h2 class="t-hero">${due.length ? `오늘 챙길 것 <em>${due.length}개</em>` : '오늘 챙길 것을 다 했어요'}</h2>
     ${progress(due.length)}
-    ${due.length ? `<ul class="rows">${due.map(dueRow).join('')}</ul>` : ''}
+    ${due.length ? `<ul class="rows">${shown.map(dueRow).join('')}</ul>` : ''}
+    ${due.length > shown.length ? `<button class="btn-sub wide" data-act="moredue">${due.length - shown.length}개 더 보기</button>` : ''}
   </section>
+  <div class="tiles">
+    ${tile('#/plan', '다음 일정', next ? L.eventStatus(next, L.today()).text : '없음', next ? esc(next.title) : '')}
+    ${tile('#/a/car', '주행거리', km ? `${num(km.value)}km` : '적기 전', km ? `${L.dateText(km.date, false)} 기준` : '')}
+    ${tile('#/log', '이번 달 쓴 돈', won(monthSpent()), '')}
+    ${tile('#/all', '채울 항목', `${unknownCount()}개`, '기록 없는 주기 항목')}
+  </div>
   ${tipSection()}
   <section class="sec">
-    <h2 class="t-section">다가오는 일정</h2>
-    ${up.length ? `<ul class="rows">${up.map(e => { const st = L.eventStatus(e, L.today()); return itemRow(e, { sub: L.dateText(e.date), right: st.text, level: st.daysLeft <= 7 ? 'soon' : 'ok', check: false, lead: iconCircle(e.area) }); }).join('')}</ul>` : empty('예정된 일정이 없어요')}
+    <div class="sec-head"><h2 class="t-section">다가오는 일정</h2>${up.length > 3 ? '<a class="link" href="#/plan">모두 보기</a>' : ''}</div>
+    ${up.length ? eventRows(up.slice(0, 3)) : empty('예정된 일정이 없어요')}
   </section>
+  ${syncLine()}`;
+}
+
+// ── 일정 탭 ─────────────────────────────────────────────
+function planView() {
+  const now = L.today(), km = curKm();
+  const up = upcoming();
+  // 2주 이상 주기 항목 가운데 한 달 안에 돌아오는 것
+  const soon = store.list('routine')
+    .filter(r => L.spanDays(r.every) >= 14)
+    .map(r => ({ r, st: L.routineStatus(r, now, km) }))
+    .filter(({ st }) => st.daysLeft != null && st.daysLeft > 0 && st.daysLeft <= 31)
+    .sort((a, b) => a.st.daysLeft - b.st.daysLeft);
+  return `
+  <header class="top"><h1 class="t-title">일정</h1><button class="link" data-act="add" data-kind="event">추가</button></header>
+  <section class="sec">
+    <h2 class="t-section">다가오는 일정</h2>
+    ${up.length ? eventRows(up) : empty('예정된 일정이 없어요')}
+  </section>
+  <section class="sec">
+    <h2 class="t-section">한 달 안에 돌아오는 것</h2>
+    ${soon.length ? `<ul class="rows">${soon.map(({ r, st }) => itemRow(r, { sub: areaName(r.area), right: L.statusText(st, r), level: st.level, check: false, lead: iconCircle(r.area) })).join('')}</ul>` : empty('한 달 안에 돌아오는 항목이 없어요')}
+  </section>`;
+}
+
+// ── 기록 탭 ─────────────────────────────────────────────
+function logView() {
+  const logs = store.list('log').sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : y.u - x.u));
+  const year = L.today().slice(0, 4);
+  const yearSpent = logs.filter(l => l.date.startsWith(year)).reduce((t, l) => t + (l.cost || 0), 0);
+  const months = [];
+  for (const l of logs) {
+    const ym = l.date.slice(0, 7);
+    if (months.at(-1)?.ym !== ym) months.push({ ym, items: [] });
+    months.at(-1).items.push(l);
+  }
+  return `
+  <header class="top"><h1 class="t-title">기록</h1><button class="link" data-act="add" data-kind="log">추가</button></header>
+  <div class="tiles">
+    ${tile('#/log', '이번 달 쓴 돈', won(monthSpent()), '')}
+    ${tile('#/log', '올해 쓴 돈', won(yearSpent), '')}
+  </div>
+  ${months.length ? months.map(m => {
+    const [y, mo] = m.ym.split('-').map(Number);
+    const sum = m.items.reduce((t, l) => t + (l.cost || 0), 0);
+    return `<section class="sec">
+      <div class="sec-head"><h2 class="t-section">${y === Number(year) ? '' : `${y}년 `}${mo}월</h2>${sum ? `<span class="t-item">${won(sum)}</span>` : ''}</div>
+      <ul class="rows">${m.items.map(l => itemRow(l, { sub: L.dateText(l.date), right: l.cost ? won(l.cost) : '', check: false, lead: iconCircle(l.area) })).join('')}</ul>
+    </section>`;
+  }).join('') : `<section class="sec">${empty('할 일을 끝내면 여기에 쌓여요')}</section>`}`;
+}
+
+// ── 전체 탭 ─────────────────────────────────────────────
+function allView() {
+  return `
+  <header class="top"><h1 class="t-title">전체</h1></header>
   <section class="sec">
     <h2 class="t-section">영역</h2>
     <ul class="rows">${AREAS.map(a => {
@@ -175,7 +268,19 @@ function homeView() {
       </a></li>`;
     }).join('')}</ul>
   </section>
-  ${syncLine()}`;
+  <section class="sec">
+    <ul class="rows"><li class="row"><a class="row-main" href="#/settings">
+      ${iconCircle('settings', 'gray')}
+      <span class="row-text"><span class="t-item">설정</span><span class="t-cap weak">동기화와 백업</span></span>
+      <span class="chev">${icon('chevron', 16)}</span>
+    </a></li></ul>
+  </section>`;
+}
+
+function navView(tab) {
+  const t = (href, id, name, ic) =>
+    `<a href="${href}" class="${tab === id ? 'on' : ''}"${tab === id ? ' aria-current="page"' : ''}>${icon(ic, 24)}<span>${name}</span></a>`;
+  return `<nav class="tabbar">${t('#/', 'home', '홈', 'home')}${t('#/plan', 'plan', '일정', 'calendar')}${t('#/log', 'log', '기록', 'receipt')}${t('#/all', 'all', '전체', 'grid')}</nav>`;
 }
 
 // ── 영역 ─────────────────────────────────────────────────
@@ -207,7 +312,7 @@ function areaView(a) {
   const spent = logs.filter(l => l.date.startsWith(now.slice(0, 4))).reduce((s, l) => s + (l.cost || 0), 0);
   const shown = ui.allLogs ? logs : logs.slice(0, 5);
   return `
-  <header class="top left"><a class="icon-btn back" href="#/" aria-label="뒤로">${icon('back')}</a><h1 class="t-title">${a.name}</h1></header>
+  <header class="top left"><a class="icon-btn back" href="#/all" aria-label="뒤로">${icon('back')}</a><h1 class="t-title">${a.name}</h1></header>
   ${a.metric ? metricBlock(a) : ''}
   ${a.link ? `<section class="sec"><ul class="rows"><li class="row"><a class="row-main" href="${a.link.url}" target="_blank" rel="noopener">
       ${iconCircle(a.id)}
@@ -236,7 +341,7 @@ function settingsView() {
   const at = s.at ? new Date(s.at).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }) : '';
   const line = { syncing: '동기화하는 중이에요', ok: `${at}에 맞췄어요`, offline: '오프라인이에요. 다음에 열 때 올려요', error: `동기화하지 못했어요. ${s.msg}`, idle: '연결돼 있어요' }[s.status] ?? '';
   return `
-  <header class="top left"><a class="icon-btn back" href="#/" aria-label="뒤로">${icon('back')}</a><h1 class="t-title">설정</h1></header>
+  <header class="top left"><a class="icon-btn back" href="#/all" aria-label="뒤로">${icon('back')}</a><h1 class="t-title">설정</h1></header>
   <section class="sec">
     <h2 class="t-section">동기화</h2>
     ${c ? `<p class="t-body muted lead">${esc(line)}</p>
@@ -268,9 +373,12 @@ function settingsView() {
 const field = (label, inner) => `<label class="field"><span class="t-cap muted">${label}</span>${inner}</label>`;
 const val = v => (v == null ? '' : esc(v));
 
+const areaField = () => field('영역', `<select name="area">${AREAS.map(a => `<option value="${a.id}">${a.name}</option>`).join('')}</select>`);
+
 function sheetHtml(c) {
   const it = c.item, now = L.today();
   let title, body, submit = '저장';
+  const pickArea = !it && !c.area && ['routine', 'event', 'log'].includes(c.kind);
   if (c.kind === 'routine') {
     const r = it ?? { every: { n: 1, unit: 'month' } };
     const car = (it?.area ?? c.area) === 'car';
@@ -287,11 +395,13 @@ function sheetHtml(c) {
   } else if (c.kind === 'event') {
     title = it ? '일정' : '일정 추가';
     body = field('이름', `<input name="title" required value="${val(it?.title)}">`)
+      + (pickArea ? areaField() : '')
       + field('날짜', `<input name="date" type="date" required value="${val(it?.date ?? now)}">`)
       + field('메모', `<textarea name="note" rows="${it?.note ? Math.min(14, it.note.split('\n').length + 1) : 3}">${val(it?.note)}</textarea>`);
   } else if (c.kind === 'log') {
     title = it ? '기록' : '기록 추가';
     body = field('이름', `<input name="title" required value="${val(it?.title)}">`)
+      + (pickArea ? areaField() : '')
       + field('날짜', `<input name="date" type="date" required max="${now}" value="${val(it?.date ?? now)}">`)
       + field('비용', `<input name="cost" type="number" inputmode="numeric" min="0" placeholder="원" value="${val(it?.cost)}">`)
       + field('메모', `<textarea name="note" rows="3">${val(it?.note)}</textarea>`);
@@ -343,18 +453,19 @@ function submitSheet(fd) {
   const v = k => String(fd.get(k) ?? '').trim();
   const nv = k => (v(k) === '' ? undefined : Number(v(k)));
   const note = v('note') || undefined;
+  const area = c.area ?? (v('area') || undefined);
   if (c.kind === 'routine') {
     store.put({
-      ...(c.item ?? { id: uid(), type: 'routine', area: c.area }),
+      ...(c.item ?? { id: uid(), type: 'routine', area }),
       title: v('title'), every: { n: Math.max(1, Math.round(nv('n') || 1)), unit: v('unit') },
       kmEvery: nv('kmEvery') || undefined, last: v('last') || undefined, lastKm: nv('lastKm'), note,
     });
   } else if (c.kind === 'event') {
-    store.put({ ...(c.item ?? { id: uid(), type: 'event', area: c.area }), title: v('title'), date: v('date'), note });
+    store.put({ ...(c.item ?? { id: uid(), type: 'event', area }), title: v('title'), date: v('date'), note });
   } else if (c.kind === 'log') {
-    store.put({ ...(c.item ?? { id: uid(), type: 'log', area: c.area }), title: v('title'), date: v('date'), cost: nv('cost'), note });
+    store.put({ ...(c.item ?? { id: uid(), type: 'log', area }), title: v('title'), date: v('date'), cost: nv('cost'), note });
   } else if (c.kind === 'goal') {
-    store.put({ ...(c.item ?? { id: uid(), type: 'goal', area: c.area }), title: v('title'), by: v('by') || undefined, pct: nv('pct'), note });
+    store.put({ ...(c.item ?? { id: uid(), type: 'goal', area }), title: v('title'), by: v('by') || undefined, pct: nv('pct'), note });
   } else if (c.kind === 'tip') {
     saveTip('done', fd);
     toast('반영한 것으로 남겼어요');
@@ -412,6 +523,7 @@ const ACT = {
   close: () => dlg.close(),
   delete: () => { store.remove(sheetCtx.item.id); dlg.close(); toast('지웠어요'); },
   morelogs: () => { ui.allLogs = true; render(); },
+  moredue: () => { ui.allDue = true; render(); },
   sync: () => store.sync(),
   disconnect: () => store.disconnect(),
   copylink: async () => {
@@ -450,14 +562,17 @@ document.addEventListener('change', async e => {
 // ── 시작 ─────────────────────────────────────────────────
 function route() {
   const h = location.hash;
-  if (h.startsWith('#/a/')) return { name: 'area', id: h.slice(4) };
-  return { name: h === '#/settings' ? 'settings' : 'home' };
+  if (h.startsWith('#/a/')) return { name: 'area', id: h.slice(4), tab: 'all' };
+  const name = { '#/plan': 'plan', '#/log': 'log', '#/all': 'all', '#/settings': 'settings' }[h] ?? 'home';
+  return { name, tab: name === 'settings' ? 'all' : name };
 }
+
+const VIEWS = { home: homeView, plan: planView, log: logView, all: allView, settings: settingsView };
 
 function render() {
   const r = route();
   const area = AREAS.find(a => a.id === r.id);
-  app.innerHTML = (area ? areaView(area) : r.name === 'settings' ? settingsView() : homeView());
+  app.innerHTML = (area ? areaView(area) : VIEWS[r.name]()) + navView(r.tab);
 }
 
 // 다른 기기에서 복사해 온 연결 링크. 주소에 토큰이 남지 않게 바로 지운다.
@@ -473,7 +588,7 @@ store.init();
 takeSetup();
 store.on(render);
 dlg.addEventListener('close', render); // 완료 시트를 그냥 닫으면 파랗게 바뀐 동그라미를 되돌린다
-addEventListener('hashchange', () => { takeSetup(); ui.allLogs = false; render(); scrollTo(0, 0); });
+addEventListener('hashchange', () => { takeSetup(); ui.allLogs = false; ui.allDue = false; render(); scrollTo(0, 0); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { store.sync(); render(); } });
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; render(); });
 render();
