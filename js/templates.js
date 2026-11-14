@@ -27,6 +27,7 @@ const LINKS = [
   ['iros', 'home', '인터넷등기소', 'https://www.iros.go.kr', '등기부등본'],
   ['khug', 'home', '주택도시보증공사', 'https://www.khug.or.kr', '전세보증금 반환보증'],
   ['nhis', 'health', '국민건강보험', 'https://www.nhis.or.kr', '건강검진 대상과 예약, 자격득실'],
+  ['hira', 'health', '심평원 내 진료정보', 'https://www.hira.or.kr', '최대 5년 진료내역과 약 처방 내역 (건강e음 앱)'],
   ['silson24', 'health', '실손24', 'https://play.google.com/store/search?q=%EC%8B%A4%EC%86%9024&c=apps', '실손보험 청구 앱 (보험개발원)'],
   ['mma', 'docs', '병무청', 'https://www.mma.go.kr', '소집 통지, 국외여행허가'],
   ['gov24', 'docs', '정부24', 'https://www.gov.kr', '등본, 초본, 각종 증명서'],
