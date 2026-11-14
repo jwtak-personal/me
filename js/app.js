@@ -105,11 +105,13 @@ const dateBadge = s => {
 
 const secHead = (title, kind, area) => `<div class="sec-head">
   <h2 class="t-section">${title}</h2>
-  <button class="link" data-act="add" data-kind="${kind}" data-area="${area}">${icon('plus', 16, 2.4)}추가</button>
+  <button class="link" data-act="add" data-kind="${kind}" data-area="${area}">추가 ${icon('plus', 14, 2.4)}</button>
 </div>`;
 
 const empty = text => `<p class="t-body weak empty">${text}</p>`;
-const fab = (kind, label) => `<button class="fab" data-act="add" data-kind="${kind}" aria-label="${label}">${icon('plus', 28, 2.4)}</button>`;
+const headBtn = (kind, label) => `<button class="head-btn" data-act="add" data-kind="${kind}" aria-label="${label}">추가</button>`;
+const brand = `<span class="brand"><img src="icons/icon-192.png" alt="" width="28" height="28"><span>나 관리</span></span>`;
+const pageTop = (title, right = '') => `<header class="top">${brand}${right}</header><div class="page-head"><h1 class="t-title">${title}</h1></div>`;
 
 function syncLine() {
   const s = store.syncState();
@@ -125,14 +127,9 @@ const openTips = () => store.list('tip').filter(t => !t.status).sort((a, b) => (
 function tipSection() {
   const tips = openTips();
   if (!tips.length) return '';
-  return `<section class="strip">
-    <h2 class="t-section">Claude 제안 <span class="count">${tips.length}</span></h2>
-    <div class="carousel">${tips.map(t => `<button class="tip-card" data-act="edit" data-id="${t.id}">
-      <span class="icon-circle small c-tip">${icon('spark', 20)}</span>
-      <span class="t-cap weak">${TIP_KIND[t.kind] ?? ''}</span>
-      <span class="t-item">${esc(t.title)}</span>
-      ${t.reply ? '<span class="t-cap today">메모 있음</span>' : ''}
-    </button>`).join('')}</div>
+  return `<section class="sec">
+    <div class="sec-head"><h2 class="t-section">Claude 제안 <span class="count">${tips.length}</span></h2></div>
+    <ul class="rows">${tips.map(t => itemRow(t, { sub: TIP_KIND[t.kind] ?? '', right: t.reply ? '메모 있음' : '', level: 'today', check: false, lead: iconCircle('spark', 'tip') })).join('')}</ul>
   </section>`;
 }
 
@@ -143,13 +140,11 @@ function doneToday() {
     + store.list('routine').filter(r => r.last === now && L.spanDays(r.every) < 14).length;
 }
 
-function ring(done, total) {
-  const r = 26, c = 2 * Math.PI * r, pct = total ? done / total : 1;
-  return `<svg class="ring${done ? '' : ' zero'}" width="72" height="72" viewBox="0 0 64 64" role="img" aria-label="오늘 ${total}개 중 ${done}개 완료">
-    <circle class="ring-bg" cx="32" cy="32" r="${r}" fill="none" stroke-width="7"/>
-    <circle class="ring-fg" cx="32" cy="32" r="${r}" fill="none" stroke-width="7" stroke-linecap="round"
-      stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - pct)).toFixed(1)}" transform="rotate(-90 32 32)"/>
-    <text class="ring-text" x="32" y="37" text-anchor="middle">${Math.round(pct * 100)}%</text>
+function progressBar(done, total) {
+  const pct = total ? Math.round((done / total) * 100) : 100;
+  return `<svg class="bar" width="100%" height="8" role="img" aria-label="오늘 ${total}개 중 ${done}개 완료">
+    <rect class="bar-bg" width="100%" height="8" rx="4"/>
+    ${pct ? `<rect class="bar-fg" width="${pct}%" height="8" rx="4"/>` : ''}
   </svg>`;
 }
 
@@ -201,30 +196,27 @@ function homeView() {
   const shown = ui.allDue ? due : due.slice(0, 5);
   const done = doneToday(), total = done + due.length;
   const next = up[0], km = latest('odometer');
-  const head = due.length ? `오늘 챙길 것 <em>${due.length}개</em>` : total ? '오늘 할 일을 다 했어요' : '오늘은 챙길 것이 없어요';
+  const head = due.length ? `오늘 챙길 것<br><em>${due.length}개</em> 남았어요` : total ? '오늘 할 일을<br>다 했어요' : '오늘은 챙길 것이<br>없어요';
   return `
-  <header class="top"><h1 class="t-title">나 관리</h1></header>
+  <header class="top">${brand}</header>
   <section class="sec hero">
-    <div class="hero-head">
-      <div>
-        <p class="t-cap weak">${L.dateText(L.today())}</p>
-        <h2 class="t-title">${head}</h2>
-        ${total ? `<p class="t-cap weak">${total}개 중 <b class="today">${done}개</b> 했어요</p>` : ''}
-      </div>
-      ${ring(done, total)}
-    </div>
+    <p class="kicker">${L.dateText(L.today())}</p>
+    <h1 class="t-hero">${head}</h1>
+    ${total ? `<div class="progress">${progressBar(done, total)}<p class="t-cap weak">${total}개 중 <b class="today">${done}개</b> 했어요</p></div>` : ''}
     ${due.length ? `<ul class="rows">${shown.map(dueRow).join('')}</ul>` : ''}
-    ${due.length > shown.length ? `<button class="more" data-act="moredue">${due.length - shown.length}개 더 보기${icon('down', 16)}</button>` : ''}
+    ${due.length > shown.length ? `<button class="more" data-act="moredue">${due.length - shown.length}개 더 보기 ${icon('down', 16)}</button>` : ''}
   </section>
-  <div class="tiles">
-    ${tile('#/plan', 'calendar', 'money', '다음 일정', next ? L.eventStatus(next, L.today()).text : '없음', next ? esc(next.title) : '')}
-    ${tile('#/a/car', 'car', 'car', '주행거리', km ? `${num(km.value)}km` : '적기 전', km ? `${L.dateText(km.date, false)} 기준` : '')}
-    ${tile('#/log', 'receipt', 'home', '이번 달 쓴 돈', won(monthSpent()), '')}
-    ${tile('#/all', 'grid', 'growth', '채울 항목', `${unknownCount()}개`, '기록 없는 주기 항목')}
-  </div>
+  <section class="sec">
+    <div class="tiles">
+      ${tile('#/plan', 'calendar', 'money', '다음 일정', next ? L.eventStatus(next, L.today()).text : '없음', next ? esc(next.title) : '')}
+      ${tile('#/a/car', 'car', 'car', '주행거리', km ? `${num(km.value)}km` : '적기 전', km ? `${L.dateText(km.date, false)} 기준` : '')}
+      ${tile('#/log', 'receipt', 'home', '이번 달 쓴 돈', won(monthSpent()), '')}
+      ${tile('#/all', 'grid', 'growth', '채울 항목', `${unknownCount()}개`, '기록 없는 주기 항목')}
+    </div>
+  </section>
   ${tipSection()}
   <section class="sec">
-    <div class="sec-head"><h2 class="t-section">다가오는 일정</h2>${up.length > 3 ? '<a class="link plain" href="#/plan">모두 보기</a>' : ''}</div>
+    <div class="sec-head"><h2 class="t-section">다가오는 일정</h2>${up.length > 3 ? `<a class="link" href="#/plan">전체 ${icon('chevron', 14, 2.4)}</a>` : ''}</div>
     ${up.length ? eventRows(up.slice(0, 3)) : empty('예정된 일정이 없어요')}
   </section>
   ${syncLine()}`;
@@ -241,7 +233,7 @@ function planView() {
     .filter(({ st }) => st.daysLeft != null && st.daysLeft > 0 && st.daysLeft <= 31)
     .sort((a, b) => a.st.daysLeft - b.st.daysLeft);
   return `
-  <header class="top"><h1 class="t-title">일정</h1></header>
+  ${pageTop('일정', headBtn('event', '일정 추가'))}
   <section class="sec">
     <h2 class="t-section">다가오는 일정</h2>
     ${up.length ? eventRows(up) : empty('예정된 일정이 없어요')}
@@ -250,7 +242,7 @@ function planView() {
     <h2 class="t-section">한 달 안에 돌아오는 것</h2>
     ${soon.length ? `<ul class="rows">${soon.map(({ r, st }) => itemRow(r, { sub: areaName(r.area), right: L.statusText(st, r), level: st.level, check: false, lead: iconCircle(r.area) })).join('')}</ul>` : empty('한 달 안에 돌아오는 항목이 없어요')}
   </section>
-  ${fab('event', '일정 추가')}`;
+`;
 }
 
 // ── 기록 탭 ─────────────────────────────────────────────
@@ -265,11 +257,13 @@ function logView() {
     months.at(-1).items.push(l);
   }
   return `
-  <header class="top"><h1 class="t-title">기록</h1></header>
-  <div class="tiles">
-    ${tile('#/log', 'receipt', 'home', '이번 달 쓴 돈', won(monthSpent()), '')}
-    ${tile('#/log', 'receipt', 'money', '올해 쓴 돈', won(yearSpent), '')}
-  </div>
+  ${pageTop('기록', headBtn('log', '기록 추가'))}
+  <section class="sec">
+    <div class="tiles">
+      ${tile('#/log', 'receipt', 'home', '이번 달 쓴 돈', won(monthSpent()), '')}
+      ${tile('#/log', 'receipt', 'money', '올해 쓴 돈', won(yearSpent), '')}
+    </div>
+  </section>
   ${months.length ? months.map(m => {
     const [y, mo] = m.ym.split('-').map(Number);
     const sum = m.items.reduce((t, l) => t + (l.cost || 0), 0);
@@ -278,13 +272,13 @@ function logView() {
       <ul class="rows">${m.items.map(l => itemRow(l, { sub: L.dateText(l.date), right: l.cost ? won(l.cost) : '', check: false, lead: iconCircle(l.area) })).join('')}</ul>
     </section>`;
   }).join('') : `<section class="sec">${empty('할 일을 끝내면 여기에 쌓여요')}</section>`}
-  ${fab('log', '기록 추가')}`;
+`;
 }
 
 // ── 전체 탭 ─────────────────────────────────────────────
 function allView() {
   return `
-  <header class="top"><h1 class="t-title">전체</h1></header>
+  ${pageTop('전체')}
   <section class="sec">
     <ul class="rows">${AREAS.map(a => {
       const s = areaSummary(a);
@@ -341,10 +335,9 @@ function areaView(a) {
   const s = areaSummary(a);
   return `
   <header class="top bar"><a class="icon-btn back" href="#/all" aria-label="뒤로">${icon('back')}</a><span class="t-item bar-title">${a.name}</span></header>
-  <section class="area-hero">
-    <span class="icon-circle big c-${a.id}">${icon(a.id, 30)}</span>
-    <h1 class="t-hero">${a.name}</h1>
-    <p class="t-body ${s.alert ? 'alert' : 'weak'}">${esc(s.text)}</p>
+  <section class="sec area-hero">
+    <span class="icon-circle big c-${a.id}">${icon(a.id, 28)}</span>
+    <div><h1 class="t-title">${a.name}</h1><p class="t-cap ${s.alert ? 'alert' : 'weak'}">${esc(s.text)}</p></div>
   </section>
   ${a.metric ? metricBlock(a) : ''}
   ${a.link ? `<section class="sec"><ul class="rows"><li class="row"><a class="row-main" href="${a.link.url}" target="_blank" rel="noopener">
@@ -375,7 +368,7 @@ function settingsView() {
   const line = { syncing: '동기화하는 중이에요', ok: `${at}에 맞췄어요`, offline: '오프라인이에요. 다음에 열 때 올려요', error: `동기화하지 못했어요. ${s.msg}`, idle: '연결돼 있어요' }[s.status] ?? '';
   return `
   <header class="top bar"><a class="icon-btn back" href="#/all" aria-label="뒤로">${icon('back')}</a><span class="t-item bar-title">설정</span></header>
-  <h1 class="t-hero page-title">설정</h1>
+  <div class="page-head"><h1 class="t-title">설정</h1></div>
   <section class="sec">
     <h2 class="t-section">동기화</h2>
     ${c ? `<p class="t-body muted lead">${esc(line)}</p>
