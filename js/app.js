@@ -385,14 +385,19 @@ function render() {
   app.innerHTML = (area ? areaView(area) : r.name === 'settings' ? settingsView() : homeView());
 }
 
-store.init();
-if (location.hash.startsWith('#setup=')) {
-  // 다른 기기에서 복사해 온 연결 링크. 주소에 토큰이 남지 않게 바로 지운다.
+// 다른 기기에서 복사해 온 연결 링크. 주소에 토큰이 남지 않게 바로 지운다.
+// 앱이 이미 열린 탭에 붙여 넣으면 새로 읽지 않고 hashchange 만 일어나서 거기서도 받는다.
+function takeSetup() {
+  if (!location.hash.startsWith('#setup=')) return false;
   try { const c = JSON.parse(atob(location.hash.slice(7))); store.connect(c.repo, c.token); } catch { /* 깨진 링크 */ }
   history.replaceState(null, '', location.pathname + '#/');
+  return true;
 }
+
+store.init();
+takeSetup();
 store.on(render);
-addEventListener('hashchange', () => { ui.allLogs = false; render(); scrollTo(0, 0); });
+addEventListener('hashchange', () => { takeSetup(); ui.allLogs = false; render(); scrollTo(0, 0); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { store.sync(); render(); } });
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; render(); });
 render();
