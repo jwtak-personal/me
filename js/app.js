@@ -1,6 +1,6 @@
-import { AREAS } from './templates.js';
-import * as L from './logic.js';
-import { store } from './store.js';
+import { AREAS } from './templates.js?v=20261114';
+import * as L from './logic.js?v=20261114';
+import { store } from './store.js?v=20261114';
 
 const app = document.getElementById('app');
 const dlg = document.getElementById('sheet');
