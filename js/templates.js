@@ -98,7 +98,7 @@ export const starterItems = () => [
   R('t-skin-clothes', 'skin', '계절 옷 정리와 드라이클리닝', 6, 'month'),
   R('t-skin-derm', 'skin', '피부과', 6, 'month'),
   R('t-skin-scalp', 'skin', '두피와 탈모 점검', 6, 'month'),
-  R('t-skin-glasses', 'skin', '안경이나 렌즈 교체', 1, 'year'),
+  R('t-skin-glasses', 'skin', '안경이나 렌즈 교체', 2, 'year', { note: '안경원에서 도수 확인. 도수가 바뀌었거나 코팅이 벗겨지면 교체' }),
 
   R('t-rest-dayoff', 'rest', '일 없이 쉬는 날', 1, 'week'),
   R('t-rest-hobby', 'rest', '취미', 2, 'week'),
