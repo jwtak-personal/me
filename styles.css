@@ -80,6 +80,7 @@ small { font-size: 14px; font-weight: 400; color: var(--weak); margin-left: 6px;
 .g-growth { --g: #12A877; }
 .g-people { --g: #FF6B3D; }
 .g-docs { --g: #1C9BD8; }
+.g-career { --g: #A0672B; }
 .g-sonpb { --g: #0F9488; }
 
 /* 회색 상자: 가까운 일정, 제안 바로가기, 숫자 */

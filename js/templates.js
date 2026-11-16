@@ -8,6 +8,7 @@ export const AREAS = [
   { id: 'skin', name: '관리' },
   { id: 'rest', name: '쉼' },
   { id: 'growth', name: '성장', goals: true },
+  { id: 'career', name: '경력' },
   { id: 'people', name: '사람' },
   { id: 'docs', name: '서류' },
   { id: 'sonpb', name: '손PB' },
@@ -107,9 +108,14 @@ export const starterItems = () => [
   R('t-growth-week', 'growth', '한 주 돌아보기', 1, 'week'),
   R('t-growth-book', 'growth', '책 한 권 읽기', 1, 'month'),
   R('t-growth-goal', 'growth', '분기 목표 점검', 3, 'month'),
-  R('t-growth-profile', 'growth', '이력서와 프로필 고치기', 6, 'month'),
   R('t-growth-year', 'growth', '한 해 돌아보기와 새해 목표', 1, 'year'),
   R('t-growth-claude', 'growth', 'Claude와 나 관리 점검', 1, 'month', { note: '새 세션에서 "나 관리 점검"' }),
+
+  R('t-career-brag', 'career', '한 일과 성과 적기', 1, 'month', { note: '이력서, 처우 협상, 이직 때 그대로 씀. 가능하면 숫자로' }),
+  R('t-growth-profile', 'career', '이력서 고치기', 6, 'month'),
+  R('t-career-linkedin', 'career', 'LinkedIn과 리멤버 프로필 갱신', 6, 'month'),
+  R('t-career-docs', 'career', '경력증명서와 자격 서류 모아 두기', 1, 'year', { note: '재직, 경력증명서, 자격증, 수료증의 원본과 스캔본' }),
+  R('t-career-review', 'career', '처우와 다음 커리어 돌아보기', 1, 'year'),
 
   R('t-people-parents', 'people', '부모님께 연락', 1, 'week'),
   R('t-people-friends', 'people', '오래 못 본 사람에게 연락', 1, 'month'),

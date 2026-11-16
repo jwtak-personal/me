@@ -1,6 +1,6 @@
-import { AREAS } from './templates.js?v=20261114d';
-import * as L from './logic.js?v=20261114d';
-import { store } from './store.js?v=20261114d';
+import { AREAS } from './templates.js?v=20261116a';
+import * as L from './logic.js?v=20261116a';
+import { store } from './store.js?v=20261116a';
 
 const app = document.getElementById('app');
 const dlg = document.getElementById('sheet');
@@ -36,6 +36,7 @@ const ICON = {
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/>',
   pencil: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  career: '<rect x="4" y="3" width="16" height="18" rx="3"/><circle cx="12" cy="10" r="3"/><path d="M8 17a4 4 0 0 1 8 0"/>',
   logbook: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>',
   grid: '<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>',
 };
