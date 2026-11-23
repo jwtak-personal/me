@@ -1,7 +1,7 @@
 // 기기 안 저장(localStorage)과 비공개 저장소 동기화(GitHub Contents API).
 // 모든 항목은 { id, type, u(고친 시각), del? } 를 갖는다. 지운 항목은 del 표시만 하고 남긴다.
-import { mergeItems, serialize } from './logic.js?v=20261123c';
-import { starterItems } from './templates.js?v=20261123c';
+import { mergeItems, serialize } from './logic.js?v=20261123d';
+import { starterItems } from './templates.js?v=20261123d';
 
 const KEY = 'me.data.v1';
 const CFG = 'me.sync.v1';
