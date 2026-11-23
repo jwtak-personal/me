@@ -30,9 +30,9 @@ test('주행거리 기준이 먼저 오면 그쪽을 보여 준다', () => {
   assert.equal(statusText(routineStatus(r, '2026-11-14', 95500), r), '7개월 남음');
 });
 
-test('짧은 주기는 습관: 기록이 없거나 밀려도 오늘', () => {
+test('짧은 주기는 습관: 밀려도 오늘, 기록이 없으면 띄우지 않음', () => {
   const daily = { every: { n: 1, unit: 'day' } };
-  assert.equal(routineStatus(daily, '2026-11-14', null).level, 'today');
+  assert.equal(routineStatus(daily, '2026-11-14', null).level, 'unknown');
   assert.equal(routineStatus({ ...daily, last: '2026-11-10' }, '2026-11-14', null).level, 'today');
   assert.equal(routineStatus({ ...daily, last: '2026-11-14' }, '2026-11-14', null).level, 'ok');
 });

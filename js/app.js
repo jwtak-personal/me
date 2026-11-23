@@ -1,6 +1,6 @@
-import { AREAS } from './templates.js?v=20261123a';
-import * as L from './logic.js?v=20261123a';
-import { store } from './store.js?v=20261123a';
+import { AREAS } from './templates.js?v=20261123b';
+import * as L from './logic.js?v=20261123b';
+import { store } from './store.js?v=20261123b';
 
 const app = document.getElementById('app');
 const dlg = document.getElementById('sheet');
@@ -46,7 +46,7 @@ const icon = (name, size = 24, sw = 2) =>
 // CSP 가 인라인 style 을 막아서 색은 클래스로 준다(styles.css 의 .g-영역).
 const mm = q => matchMedia(q).matches;
 
-const ui = { allLogs: false, allDue: false };
+const ui = { allLogs: false, allDue: false, day: null };
 let sheetCtx = null;
 let installEvt = null;
 
@@ -159,32 +159,73 @@ function agenda(days) {
   return groups;
 }
 
-// ── 오늘 (Things 'Today') ─────────────────────────────────
+// ── 홈 (웍스 일정 화면처럼: 두 주 달력, 고른 날, 앞으로 일정, 영역별) ──
+const md = s => { const d = L.parse(s); return `${d.getMonth() + 1}/${d.getDate()}(${'일월화수목금토'[d.getDay()]})`; };
+// 영역 표시: 색 점 + 영역 이름
+const tag = area => `<span class="tag g-${area}"><i></i>${areaName(area)}</span>`;
+function homeRow(it, { meta = '', metaCls = '', check = false } = {}) {
+  return `<li class="row hrow">
+    ${tag(it.area)}
+    <button class="hrow-main" data-act="edit" data-id="${it.id}"><span class="row-title">${esc(it.title)}</span>${meta ? `<span class="row-sub ${metaCls}">${esc(meta)}</span>` : ''}</button>
+    ${check ? box(it) : ''}
+  </li>`;
+}
+
+// 날짜별 항목. 지난날은 한 일(기록), 오늘은 챙길 것 전부(밀린 것 포함), 앞날은 일정과 돌아오는 주기 항목
+function dayItems(date, ahead) {
+  const now = L.today();
+  if (date < now) return store.list('log').filter(l => l.date === date).map(it => ({ it }));
+  if (date === now) return dueList().filter(d => d.level !== 'soon')
+    .map(d => ({ it: d.it, meta: d.level === 'over' ? d.text : '', metaCls: d.level === 'over' ? 'alert' : '', check: true }));
+  return (ahead.get(date) ?? []).map(it => ({ it, meta: it.type === 'routine' ? L.everyText(it) : '' }));
+}
+
+function calendar(sel, ahead) {
+  const now = L.today();
+  const start = L.addInterval(now, { n: -L.parse(now).getDay(), unit: 'day' });
+  const days = Array.from({ length: 14 }, (_, i) => L.addInterval(start, { n: i, unit: 'day' }));
+  const dots = d => [...new Set(dayItems(d, ahead).map(x => x.it.area))].slice(0, 3).map(a => `<i class="g-${a}"></i>`).join('');
+  const wk = i => (i % 7 === 0 ? ' sun' : i % 7 === 6 ? ' sat' : '');
+  return `<div class="cal">
+    ${[...'일월화수목금토'].map((w, i) => `<span class="cal-w${wk(i)}">${w}</span>`).join('')}
+    ${days.map((d, i) => `<button class="cal-d${wk(i)}${d < now ? ' past' : ''}${d === now ? ' now' : ''}${d === sel ? ' sel' : ''}" data-act="day" data-date="${d}" aria-label="${L.dateText(d)}"${d === sel ? ' aria-pressed="true"' : ''}>
+      <b>${L.parse(d).getDate()}</b><span class="cal-dots">${dots(d)}</span></button>`).join('')}
+  </div>`;
+}
+
 function homeView() {
-  const due = dueList();
-  const now = due.filter(d => d.level !== 'soon');
-  const soon = due.filter(d => d.level === 'soon');
+  const now = L.today(), sel = ui.day ?? now;
+  const groups = agenda(60);
+  const ahead = new Map(groups.map(g => [g.date, g.items]));
+  const items = dayItems(sel, ahead);
+  const soonGroups = groups.filter(g => L.diffDays(g.date, now) <= 30);
+  const shownGroups = []; // 앞으로 일정은 여덟 줄까지만, 나머지는 일정 탭에서
+  let left = 8;
+  for (const g of soonGroups) {
+    if (left <= 0) break;
+    shownGroups.push({ date: g.date, items: g.items.slice(0, left) });
+    left -= g.items.length;
+  }
+  const more = soonGroups.reduce((t, g) => t + g.items.length, 0) - shownGroups.reduce((t, g) => t + g.items.length, 0);
   const tips = openTips();
-  const week = upcoming().filter(e => L.diffDays(e.date, L.today()) <= 14);
-  const row = d => taskRow(d.it, {
-    sub: areaName(d.it.area),
-    meta: d.level === 'today' ? '' : d.text,
-    metaCls: d.level === 'over' ? 'alert' : '',
-  });
-  const over = now.filter(d => d.level === 'over').length;
   return `
-  ${pageTitle('오늘', '', '', L.dateText(L.today()))}
+  ${pageTitle('홈', '', '', L.dateText(now))}
+  ${card(`${calendar(sel, ahead)}
+    <div class="day-bar"><h2>${md(sel)}${sel === now ? ' 오늘' : ''}</h2>
+      ${sel >= now ? `<button class="chip" data-act="add" data-kind="event" data-date="${sel}">${icon('plus', 18, 2.2)}일정</button>` : ''}</div>
+    ${items.length ? `<ul class="hlist">${items.map(x => homeRow(x.it, x)).join('')}</ul>`
+      : empty(sel < now ? '이날 남긴 기록이 없어요' : sel === now ? '오늘 챙길 것이 없어요' : '이날 잡힌 일이 없어요')}`)}
   ${tips.length ? card(`<a class="link-row" href="#/tips">${glyph('spark', 'tip')}<span class="link-row-text"><span class="row-title">Claude 제안 ${tips.length}개</span><span class="row-sub">읽고 반영하거나 넘겨 주세요</span></span>${icon('chevron', 18)}</a>`, 'tight') : ''}
-  ${card(now.length
-    ? `${groupHead(over ? `${over}개가 늦었어요` : `${now.length}개 남았어요`, { eyebrow: '오늘 챙길 것' })}<ul class="rows">${now.map(row).join('')}</ul>`
-    : `<div class="all-done">${glyph('check', 'done', 24)}<p>오늘 할 일을 다 했어요</p></div>`)}
-  ${week.length ? card(`${groupHead(`${dayLabel(week[0].date) === '내일' ? '내일' : L.dateText(week[0].date, false)} ${esc(week[0].title)}`, { eyebrow: '2주 안 일정' })}
-    <div class="agenda">${week.map(e => `<button class="agenda-line" data-act="edit" data-id="${e.id}">
-      <span class="agenda-date">${dayLabel(e.date) === '내일' ? '내일' : L.dateText(e.date, false)}</span><span>${esc(e.title)}</span>
-    </button>`).join('')}</div>`) : ''}
-  ${soon.length ? card(`${groupHead(`${soon.length}개가 다가와요`, { eyebrow: '곧' })}<ul class="rows">${soon.map(row).join('')}</ul>`) : ''}
-  ${syncLine()}
-  ${fab('event', '할 일 추가')}`;
+  ${card(`${groupHead('앞으로 일정', { right: soonGroups.length ? '30일 안' : '' })}
+    ${shownGroups.length ? shownGroups.map(g => `<p class="date-head">${md(g.date)}</p>
+      <ul class="hlist">${g.items.map(it => homeRow(it, { meta: L.diffDays(g.date, now) === 1 ? '내일' : `D-${L.diffDays(g.date, now)}` })).join('')}</ul>`).join('') : empty('30일 안에 잡힌 일정이 없어요')}
+    ${more > 0 ? `<a class="more" href="#/plan">${more}개 더 보기</a>` : ''}`)}
+  ${card(`${groupHead('영역별')}
+    <div class="area-grid">${AREAS.map(a => {
+      const s = areaSummary(a);
+      return `<a class="area-tile" href="#/a/${a.id}">${glyph(a.id, a.id)}<span class="row-title">${a.name}</span><span class="row-sub${s.alert ? ' alert' : ''}">${esc(s.text)}</span></a>`;
+    }).join('')}</div>`)}
+  ${syncLine()}`;
 }
 
 // ── 일정 (Things 'Upcoming') ──────────────────────────────
@@ -234,7 +275,7 @@ function allView() {
   return `
   ${pageTitle('전체')}
   ${card(`<ul class="list">
-    ${navRow('#/', 'star', 'star', '오늘', due.length ? `챙길 것 ${due.length}개` : '', over || '')}
+    ${navRow('#/', 'star', 'star', '홈', due.length ? `챙길 것 ${due.length}개` : '', over || '')}
     ${navRow('#/plan', 'calendar', 'cal', '일정', upcoming().length ? `잡힌 일정 ${upcoming().length}개` : '')}
     ${navRow('#/tips', 'spark', 'tip', 'Claude 제안', openTips().length ? `새 제안 ${openTips().length}개` : '')}
     ${navRow('#/log', 'logbook', 'done', '기록')}
@@ -321,7 +362,7 @@ function areaView(a) {
 function navView(tab) {
   const t = (href, id, name, ic) =>
     `<a href="${href}" class="${tab === id ? 'on' : ''}"${tab === id ? ' aria-current="page"' : ''}>${icon(ic, 24, 2)}<span>${name}</span></a>`;
-  return `<nav class="tabbar">${t('#/', 'home', '오늘', 'star')}${t('#/plan', 'plan', '일정', 'calendar')}${t('#/log', 'log', '기록', 'logbook')}${t('#/all', 'all', '전체', 'grid')}</nav>`;
+  return `<nav class="tabbar">${t('#/', 'home', '홈', 'home')}${t('#/plan', 'plan', '일정', 'calendar')}${t('#/log', 'log', '기록', 'logbook')}${t('#/all', 'all', '전체', 'grid')}</nav>`;
 }
 
 // ── 설정 ─────────────────────────────────────────────────
@@ -378,7 +419,7 @@ function sheetHtml(c) {
     title = it ? '일정' : '일정 추가';
     body = field('이름', `<input name="title" required value="${val(it?.title)}">`)
       + (pickArea ? areaField() : '')
-      + field('날짜', `<input name="date" type="date" required value="${val(it?.date ?? now)}">`)
+      + field('날짜', `<input name="date" type="date" required value="${val(it?.date ?? c.date ?? now)}">`)
       + field('메모', `<textarea name="note" rows="${it?.note ? Math.min(14, it.note.split('\n').length + 1) : 3}">${val(it?.note)}</textarea>`);
   } else if (c.kind === 'log') {
     title = it ? '기록' : '기록 추가';
@@ -512,7 +553,8 @@ const ACT = {
     setTimeout(() => done(it), mm('(prefers-reduced-motion: reduce)') ? 0 : instant ? 460 : 240);
   },
   edit: el => { const it = store.get(el.dataset.id); if (it) openSheet({ kind: it.type, item: it }); },
-  add: el => openSheet({ kind: el.dataset.kind, area: el.dataset.area }),
+  add: el => openSheet({ kind: el.dataset.kind, area: el.dataset.area, date: el.dataset.date }),
+  day: el => { ui.day = el.dataset.date === L.today() ? null : el.dataset.date; render(); },
   reading: el => openSheet({ kind: 'reading', area: el.dataset.area }),
   close: () => dlg.close(),
   delete: () => { store.remove(sheetCtx.item.id); dlg.close(); toast('지웠어요'); },
@@ -611,7 +653,7 @@ store.init();
 takeSetup();
 store.on(render);
 dlg.addEventListener('close', () => render()); // 완료 시트를 그냥 닫으면 파랗게 바뀐 동그라미를 되돌린다
-addEventListener('hashchange', () => { takeSetup(); ui.allLogs = false; ui.allDue = false; scrollTo(0, 0); render(true); });
+addEventListener('hashchange', () => { takeSetup(); ui.allLogs = false; ui.allDue = false; ui.day = null; scrollTo(0, 0); render(true); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { store.sync(); render(); } });
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; render(); });
 render();

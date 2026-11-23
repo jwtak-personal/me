@@ -70,8 +70,6 @@ export const starterItems = () => [
   R('t-car-insurance', 'car', '자동차 보험 갱신', 1, 'year'),
   R('t-car-inspect', 'car', '자동차 정기검사', 2, 'year'),
 
-  R('t-home-clean', 'home', '청소', 1, 'week'),
-  R('t-home-grocery', 'home', '장보기', 1, 'week'),
   R('t-home-bedding', 'home', '침구 세탁', 2, 'week'),
   R('t-home-bills', 'home', '관리비와 공과금 확인', 1, 'month'),
   R('t-home-washer', 'home', '세탁조 청소', 3, 'month'),
@@ -84,14 +82,12 @@ export const starterItems = () => [
 
   R('t-health-checkup', 'health', '건강검진', 2, 'year'),
   R('t-health-scaling', 'health', '치과 스케일링', 1, 'year', { note: '건강보험 적용은 1년에 한 번' }),
-  R('t-health-exercise', 'health', '운동', 2, 'day'),
   R('t-health-weight', 'health', '체중 재기', 1, 'week'),
   R('t-health-toothbrush', 'health', '칫솔 교체', 3, 'month'),
   R('t-health-flu', 'health', '독감 예방접종', 1, 'year'),
   R('t-health-eye', 'health', '시력과 눈 검진', 2, 'year'),
   R('t-health-tetanus', 'health', '파상풍 예방접종', 10, 'year', { note: 'A형 간염처럼 어릴 때 안 맞은 접종도 같이 확인' }),
 
-  R('t-skin-sunscreen', 'skin', '선크림 바르기', 1, 'day'),
   R('t-skin-pillow', 'skin', '베개 커버 세탁', 1, 'week'),
   R('t-skin-razor', 'skin', '면도날 교체', 3, 'week'),
   R('t-skin-hair', 'skin', '미용실', 1, 'month'),
@@ -100,8 +96,6 @@ export const starterItems = () => [
   R('t-skin-scalp', 'skin', '두피와 탈모 점검', 6, 'month'),
   R('t-skin-glasses', 'skin', '안경이나 렌즈 교체', 2, 'year', { note: '안경원에서 도수 확인. 도수가 바뀌었거나 코팅이 벗겨지면 교체' }),
 
-  R('t-rest-dayoff', 'rest', '일 없이 쉬는 날', 1, 'week'),
-  R('t-rest-hobby', 'rest', '취미', 2, 'week'),
   R('t-rest-trip', 'rest', '여행이나 휴가 계획', 3, 'month'),
   R('t-rest-leave', 'rest', '남은 연차 확인', 6, 'month'),
 

@@ -26,11 +26,12 @@ export const spanDays = ({ n, unit }) => n * { day: 1, week: 7, month: 30, year:
 
 // level: over(지남) / today(오늘) / soon(곧) / ok(여유) / unknown(기록 없음)
 // 주기가 2주보다 짧은 항목은 습관으로 본다. 밀려도 '지남' 대신 '오늘'로만 보여 준다.
+// 한 번도 기록이 없으면 길든 짧든 띄우지 않는다(11-23: 기록 없는 1주 항목이 매일 홈에 떠서 헷갈렸음).
 export function routineStatus(r, now, curKm) {
   const span = spanDays(r.every);
   const short = span < 14;
   const hasKm = !!r.kmEvery && r.lastKm != null && curKm != null;
-  if (!r.last && !hasKm) return { level: short ? 'today' : 'unknown', daysLeft: null, kmLeft: null };
+  if (!r.last && !hasKm) return { level: 'unknown', daysLeft: null, kmLeft: null };
   const daysLeft = r.last ? diffDays(addInterval(r.last, r.every), now) : null;
   const kmLeft = hasKm ? r.lastKm + r.kmEvery - curKm : null;
   const soonDays = span >= 90 ? 14 : short ? 0 : 3;
