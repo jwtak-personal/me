@@ -1,6 +1,6 @@
-import { AREAS } from './templates.js?v=20261116b';
-import * as L from './logic.js?v=20261116b';
-import { store } from './store.js?v=20261116b';
+import { AREAS } from './templates.js?v=20261123a';
+import * as L from './logic.js?v=20261123a';
+import { store } from './store.js?v=20261123a';
 
 const app = document.getElementById('app');
 const dlg = document.getElementById('sheet');
@@ -85,9 +85,10 @@ function areaSummary(a) {
   return { text: unknown ? `기록 없는 항목 ${unknown}개` : '다 챙겼어요' };
 }
 
-// ── 화면 조각 (Things 3 방식: 흰 바탕, 작은 색 아이콘, 왼쪽 체크박스, 얇은 선 아래 묶음 제목) ──
-// 영역 색은 styles.css 의 .g-영역. 아이콘에만 쓰고 바탕은 칠하지 않는다.
-const glyph = (name, color = name, size = 22) => `<span class="glyph g-${color}">${icon(name, size)}</span>`;
+// ── 화면 조각 (손PB 11-21 시안 방식: 회색 바탕 위 흰 둥근 상자, 색 아이콘 원, 왼쪽 체크박스) ──
+// 영역 색은 styles.css 의 .g-영역. 연한 원 바탕에 진한 아이콘.
+const glyph = (name, color = name, size = 20) => `<span class="glyph g-${color}">${icon(name, size)}</span>`;
+const card = (inner, cls = '') => `<section class="card${cls ? ` ${cls}` : ''}">${inner}</section>`;
 const box = it =>
   `<button class="box" data-act="done" data-id="${it.id}" aria-label="${esc(it.title)} 완료"><span>${icon('check', 14, 3)}</span></button>`;
 
@@ -106,17 +107,18 @@ const itemRow = (it, { sub, right, level, check = true, lead = '' }) =>
   taskRow(it, { sub, meta: right, metaCls: STATUS_CLS[level] ?? '', check, lead });
 const STATUS_CLS = { over: 'alert', today: 'today', soon: 'soon' };
 
-// 페이지 머리: 색 아이콘 + 큰 제목, 아래 회색 한 줄
+// 페이지 머리: 큰 제목(영역 화면은 앞에 색 원), 아래 회색 한 줄
 const pageTitle = (title, g, color, sub = '') => `<div class="page-title">
-  <h1>${g ? glyph(g, color, 28) : ''}<span>${title}</span></h1>
+  <h1>${g ? glyph(g, color, 22) : ''}<span>${title}</span></h1>
   ${sub ? `<p class="page-sub">${sub}</p>` : ''}
 </div>`;
 // 안쪽 화면 머리: 뒤로가기만
 const navBar = back => `<header class="nav"><a class="icon-btn" href="${back}" aria-label="뒤로">${icon('back', 26)}</a></header>`;
-// 묶음 제목: 얇은 선 위
-const groupHead = (title, { g, color, add, blue } = {}) => `<div class="group-head${blue ? ' blue' : ''}">
-  ${g ? glyph(g, color, 20) : ''}<h2>${title}</h2>
-  ${add ? `<button class="add-mini" data-act="add" data-kind="${add.kind}" data-area="${add.area ?? ''}" aria-label="${title} 추가">${icon('plus', 20, 2.2)}</button>` : ''}
+// 상자 머리: 작은 머리말 한 줄 + 제목, 오른쪽에 보조 글자나 + 버튼
+const groupHead = (title, { eyebrow, add, right } = {}) => `<div class="card-head">
+  <div class="card-head-text">${eyebrow ? `<p class="eyebrow">${eyebrow}</p>` : ''}<h2>${title}</h2></div>
+  ${right ? `<span class="card-head-right">${right}</span>` : ''}
+  ${add ? `<button class="add-mini" data-act="add" data-kind="${add.kind}" data-area="${add.area ?? ''}" aria-label="${add.label ?? title} 추가">${icon('plus', 20, 2.2)}</button>` : ''}
 </div>`;
 const empty = text => `<p class="empty">${text}</p>`;
 const fab = (kind, label) => `<button class="fab" data-act="add" data-kind="${kind}" aria-label="${label}">${icon('plus', 28, 2.4)}</button>`;
@@ -169,14 +171,18 @@ function homeView() {
     meta: d.level === 'today' ? '' : d.text,
     metaCls: d.level === 'over' ? 'alert' : '',
   });
+  const over = now.filter(d => d.level === 'over').length;
   return `
-  ${pageTitle('오늘', 'star', 'star', L.dateText(L.today()))}
-  ${tips.length ? `<a class="note-box link-box" href="#/tips">${glyph('spark', 'tip', 20)}<span>Claude 제안 <b>${tips.length}개</b></span>${icon('chevron', 16)}</a>` : ''}
-  ${week.length ? `<div class="note-box agenda-box">${week.map(e => `<button class="agenda-line" data-act="edit" data-id="${e.id}">
+  ${pageTitle('오늘', '', '', L.dateText(L.today()))}
+  ${tips.length ? card(`<a class="link-row" href="#/tips">${glyph('spark', 'tip')}<span class="link-row-text"><span class="row-title">Claude 제안 ${tips.length}개</span><span class="row-sub">읽고 반영하거나 넘겨 주세요</span></span>${icon('chevron', 18)}</a>`, 'tight') : ''}
+  ${card(now.length
+    ? `${groupHead(over ? `${over}개가 늦었어요` : `${now.length}개 남았어요`, { eyebrow: '오늘 챙길 것' })}<ul class="rows">${now.map(row).join('')}</ul>`
+    : `<div class="all-done">${glyph('check', 'done', 24)}<p>오늘 할 일을 다 했어요</p></div>`)}
+  ${week.length ? card(`${groupHead(`${dayLabel(week[0].date) === '내일' ? '내일' : L.dateText(week[0].date, false)} ${esc(week[0].title)}`, { eyebrow: '2주 안 일정' })}
+    <div class="agenda">${week.map(e => `<button class="agenda-line" data-act="edit" data-id="${e.id}">
       <span class="agenda-date">${dayLabel(e.date) === '내일' ? '내일' : L.dateText(e.date, false)}</span><span>${esc(e.title)}</span>
-    </button>`).join('')}</div>` : ''}
-  ${now.length ? `<ul class="rows">${now.map(row).join('')}</ul>` : `<div class="all-done">${glyph('check', 'done', 28)}<p>오늘 할 일을 다 했어요</p></div>`}
-  ${soon.length ? `${groupHead('곧', { g: 'flag', color: 'flag' })}<ul class="rows">${soon.map(row).join('')}</ul>` : ''}
+    </button>`).join('')}</div>`) : ''}
+  ${soon.length ? card(`${groupHead(`${soon.length}개가 다가와요`, { eyebrow: '곧' })}<ul class="rows">${soon.map(row).join('')}</ul>`) : ''}
   ${syncLine()}
   ${fab('event', '할 일 추가')}`;
 }
@@ -186,12 +192,12 @@ function planView() {
   const groups = agenda(120);
   const thisYear = L.today().slice(0, 4);
   return `
-  ${pageTitle('일정', 'calendar', 'cal')}
+  ${pageTitle('일정', '', '', groups.length ? `넉 달 안에 ${groups.reduce((t, g) => t + g.items.length, 0)}개` : '')}
   ${groups.length ? groups.map(g => {
     const d = L.parse(g.date);
-    return `<div class="day-head"><b>${d.getDate()}</b><span>${g.date.slice(0, 4) === thisYear ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월 ${dayLabel(g.date)}</span></div>
-      <ul class="rows">${g.items.map(it => taskRow(it, { sub: it.type === 'routine' ? L.everyText(it) : areaName(it.area) })).join('')}</ul>`;
-  }).join('') : empty('앞으로 넉 달 동안 잡힌 일정이 없어요')}
+    return card(`<div class="day-head"><b>${d.getDate()}</b><span>${g.date.slice(0, 4) === thisYear ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월 ${dayLabel(g.date)}</span></div>
+      <ul class="rows">${g.items.map(it => taskRow(it, { sub: it.type === 'routine' ? L.everyText(it) : areaName(it.area) })).join('')}</ul>`);
+  }).join('') : card(empty('앞으로 넉 달 동안 잡힌 일정이 없어요'))}
   ${fab('event', '일정 추가')}`;
 }
 
@@ -206,13 +212,14 @@ function logView() {
     months.at(-1).items.push(l);
   }
   return `
-  ${pageTitle('기록', 'logbook', 'done', `이번 달 ${won(spentIn(ym))}, 올해 ${won(spentIn(year))} 썼어요`)}
+  ${pageTitle('기록')}
+  ${card(`<p class="eyebrow">이번 달 쓴 돈</p><p class="display">${won(spentIn(ym))}</p><p class="row-sub">올해 ${won(spentIn(year))}</p>`, 'summary')}
   ${months.length ? months.map(m => {
     const [y, mo] = m.ym.split('-').map(Number);
     const sum = m.items.reduce((t, l) => t + (l.cost || 0), 0);
-    return `${groupHead(`${String(y) === year ? '' : `${y}년 `}${mo}월${sum ? ` <small>${won(sum)}</small>` : ''}`)}
-      <ul class="rows">${m.items.map(l => taskRow(l, { check: false, lead: `<span class="box done-box"><span>${icon('check', 14, 3)}</span></span>`, sub: L.dateText(l.date), meta: l.cost ? won(l.cost) : '' })).join('')}</ul>`;
-  }).join('') : empty('할 일을 끝내면 여기에 쌓여요')}
+    return card(`${groupHead(`${String(y) === year ? '' : `${y}년 `}${mo}월`, { right: sum ? won(sum) : '' })}
+      <ul class="rows">${m.items.map(l => taskRow(l, { check: false, lead: `<span class="box done-box"><span>${icon('check', 14, 3)}</span></span>`, sub: L.dateText(l.date), meta: l.cost ? won(l.cost) : '' })).join('')}</ul>`);
+  }).join('') : card(empty('할 일을 끝내면 여기에 쌓여요'))}
   ${fab('log', '기록 추가')}`;
 }
 
@@ -220,29 +227,26 @@ function logView() {
 function allView() {
   const due = dueList();
   const over = due.filter(d => d.level === 'over').length;
-  const navRow = (href, g, color, name, count = '', badge = '') => `<li><a class="list-row" href="${href}">
-    ${glyph(g, color)}<span class="list-name">${name}</span>
-    ${badge ? `<span class="badge">${badge}</span>` : ''}${count !== '' ? `<span class="list-count">${count}</span>` : ''}
+  const navRow = (href, g, color, name, sub = '', badge = '') => `<li><a class="list-row" href="${href}">
+    ${glyph(g, color)}<span class="link-row-text"><span class="row-title">${name}</span>${sub ? `<span class="row-sub">${esc(sub)}</span>` : ''}</span>
+    ${badge ? `<span class="badge">${badge}</span>` : ''}${icon('chevron', 18)}
   </a></li>`;
   return `
   ${pageTitle('전체')}
-  <ul class="list">
-    ${navRow('#/', 'star', 'star', '오늘', due.length || '', over || '')}
-    ${navRow('#/plan', 'calendar', 'cal', '일정', upcoming().length || '')}
-    ${navRow('#/tips', 'spark', 'tip', 'Claude 제안', openTips().length || '')}
+  ${card(`<ul class="list">
+    ${navRow('#/', 'star', 'star', '오늘', due.length ? `챙길 것 ${due.length}개` : '', over || '')}
+    ${navRow('#/plan', 'calendar', 'cal', '일정', upcoming().length ? `잡힌 일정 ${upcoming().length}개` : '')}
+    ${navRow('#/tips', 'spark', 'tip', 'Claude 제안', openTips().length ? `새 제안 ${openTips().length}개` : '')}
     ${navRow('#/log', 'logbook', 'done', '기록')}
-    ${navRow('#/links', 'link', 'tip', '바로가기', store.list('link').length || '')}
-  </ul>
-  <div class="list-gap"></div>
-  <ul class="list">
+    ${navRow('#/links', 'link', 'tip', '바로가기', store.list('link').length ? `사이트 ${store.list('link').length}개` : '')}
+  </ul>`)}
+  ${card(`${groupHead('영역')}<ul class="list">
     ${AREAS.map(a => {
-      const n = due.filter(d => d.it.area === a.id).length;
       const o = due.filter(d => d.it.area === a.id && d.level === 'over').length;
-      return navRow(`#/a/${a.id}`, a.id, a.id, a.name, n || '', o || '');
+      return navRow(`#/a/${a.id}`, a.id, a.id, a.name, areaSummary(a).text, o || '');
     }).join('')}
-  </ul>
-  <div class="list-gap"></div>
-  <ul class="list">${navRow('#/settings', 'settings', 'gray', '설정')}</ul>`;
+  </ul>`)}
+  ${card(`<ul class="list">${navRow('#/settings', 'settings', 'gray', '설정')}</ul>`)}`;
 }
 
 // ── 바로가기 ─────────────────────────────────────────────
@@ -260,8 +264,8 @@ function linksView() {
   const groups = AREAS.map(a => ({ a, list: linksOf(a.id) })).filter(g => g.list.length);
   return `
   ${navBar('#/all')}
-  ${pageTitle('바로가기', 'link', 'tip')}
-  ${groups.length ? groups.map(g => `${groupHead(g.a.name, { g: g.a.id, color: g.a.id })}${linkRows(g.list)}`).join('') : empty('저장한 사이트가 없어요')}
+  ${pageTitle('바로가기')}
+  ${groups.length ? groups.map(g => card(`${groupHead(g.a.name)}${linkRows(g.list)}`)).join('') : card(empty('저장한 사이트가 없어요'))}
   ${fab('link', '사이트 추가')}`;
 }
 
@@ -270,23 +274,23 @@ function tipsView() {
   const tips = openTips();
   return `
   ${navBar('#/all')}
-  ${pageTitle('Claude 제안', 'spark', 'tip')}
-  ${tips.length ? `<ul class="rows">${tips.map(t => taskRow(t, { check: false, lead: glyph('spark', 'tip', 20), sub: TIP_KIND[t.kind] ?? '', meta: t.reply ? '메모 있음' : '', metaCls: 'today' })).join('')}</ul>` : empty('지금은 새 제안이 없어요')}`;
+  ${pageTitle('Claude 제안')}
+  ${card(tips.length ? `<ul class="rows">${tips.map(t => taskRow(t, { check: false, lead: glyph('spark', 'tip'), sub: TIP_KIND[t.kind] ?? '', meta: t.reply ? '메모 있음' : '', metaCls: 'today' })).join('')}</ul>` : empty('지금은 새 제안이 없어요'))}`;
 }
 
 // ── 영역 (Things 'Project') ──────────────────────────────
 function metricBlock(a) {
   const m = a.metric, cur = latest(m.key);
-  return `<div class="note-box metric">
-    <div><p class="row-sub">${m.name}</p><p class="metric-value">${cur ? `${num(cur.value)}${m.unit}` : '적기 전'}</p>${cur ? `<p class="row-sub">${L.dateText(cur.date, false)} 기준</p>` : ''}</div>
+  return card(`<div class="metric">
+    <div><p class="eyebrow">${m.name}</p><p class="display">${cur ? `${num(cur.value)}${m.unit}` : '적기 전'}</p>${cur ? `<p class="row-sub">${L.dateText(cur.date, false)} 기준</p>` : ''}</div>
     <button class="pill" data-act="reading" data-area="${a.id}">${cur ? '새로 적기' : '적기'}</button>
-  </div>`;
+  </div>`, 'summary');
 }
 
 function goalSection(a) {
   const goals = store.list('goal', a.id).sort((x, y) => ((x.by || '9') < (y.by || '9') ? -1 : 1));
-  return `${groupHead('목표', { blue: true, add: { kind: 'goal', area: a.id } })}
-    ${goals.length ? `<ul class="rows">${goals.map(g => taskRow(g, { check: false, lead: glyph('growth', 'growth', 20), sub: g.by ? `${L.dateText(g.by, false)}까지` : '', meta: g.pct != null ? `${g.pct}%` : '', metaCls: 'today' })).join('')}</ul>` : empty('아직 목표가 없어요')}`;
+  return card(`${groupHead('목표', { add: { kind: 'goal', area: a.id } })}
+    ${goals.length ? `<ul class="rows">${goals.map(g => taskRow(g, { check: false, lead: glyph('growth', 'growth'), sub: g.by ? `${L.dateText(g.by, false)}까지` : '', meta: g.pct != null ? `${g.pct}%` : '', metaCls: 'today' })).join('')}</ul>` : empty('아직 목표가 없어요')}`);
 }
 
 function areaView(a) {
@@ -302,15 +306,16 @@ function areaView(a) {
   ${navBar('#/all')}
   ${pageTitle(a.name, a.id, a.id, esc(s.text))}
   ${a.metric ? metricBlock(a) : ''}
-  ${linksOf(a.id).length ? `${groupHead('바로가기', { blue: true, add: { kind: 'link', area: a.id } })}${linkRows(linksOf(a.id))}` : ''}
+  ${linksOf(a.id).length ? card(`${groupHead('바로가기', { add: { kind: 'link', area: a.id, label: '사이트' } })}${linkRows(linksOf(a.id))}`) : ''}
   ${a.goals ? goalSection(a) : ''}
-  ${groupHead('주기 관리', { blue: true, add: { kind: 'routine', area: a.id } })}
-  ${rs.length ? `<ul class="rows">${rs.map(({ r, st }) => taskRow(r, { sub: L.everyText(r), meta: L.statusText(st, r), metaCls: STATUS_CLS[st.level] ?? '' })).join('')}</ul>` : empty('주기로 챙길 항목을 추가해 보세요')}
-  ${groupHead('일정', { blue: true, add: { kind: 'event', area: a.id } })}
-  ${evs.length ? `<ul class="rows">${evs.map(e => { const st = L.eventStatus(e, now); return taskRow(e, { sub: L.dateText(e.date), meta: st.text, metaCls: STATUS_CLS[st.level] ?? '' }); }).join('')}</ul>` : empty('예정된 일정이 없어요')}
-  ${groupHead(`기록${spent ? ` <small>올해 ${won(spent)}</small>` : ''}`, { blue: true, add: { kind: 'log', area: a.id } })}
+  ${card(`${groupHead('주기 관리', { add: { kind: 'routine', area: a.id } })}
+  ${rs.length ? `<ul class="rows">${(ui.allDue ? rs : rs.slice(0, 5)).map(({ r, st }) => taskRow(r, { sub: L.everyText(r), meta: L.statusText(st, r), metaCls: STATUS_CLS[st.level] ?? '' })).join('')}</ul>` : empty('주기로 챙길 항목을 추가해 보세요')}
+  ${rs.length > 5 && !ui.allDue ? `<button class="more" data-act="moredue">${rs.length - 5}개 더 보기</button>` : ''}`)}
+  ${card(`${groupHead('일정', { add: { kind: 'event', area: a.id } })}
+  ${evs.length ? `<ul class="rows">${evs.map(e => { const st = L.eventStatus(e, now); return taskRow(e, { sub: L.dateText(e.date), meta: st.text, metaCls: STATUS_CLS[st.level] ?? '' }); }).join('')}</ul>` : empty('예정된 일정이 없어요')}`)}
+  ${card(`${groupHead('기록', { right: spent ? `올해 ${won(spent)}` : '', add: { kind: 'log', area: a.id } })}
   ${logs.length ? `<ul class="rows">${shown.map(l => taskRow(l, { check: false, lead: `<span class="box done-box"><span>${icon('check', 14, 3)}</span></span>`, sub: L.dateText(l.date), meta: l.cost ? won(l.cost) : '' })).join('')}</ul>` : empty('아직 기록이 없어요')}
-  ${logs.length > 5 && !ui.allLogs ? `<button class="more" data-act="morelogs">기록 ${logs.length}개 모두 보기</button>` : ''}`;
+  ${logs.length > 5 && !ui.allLogs ? `<button class="more" data-act="morelogs">더 보기</button>` : ''}`)}`;
 }
 
 function navView(tab) {
@@ -326,10 +331,9 @@ function settingsView() {
   const line = { syncing: '동기화하는 중이에요', ok: `${at}에 맞췄어요`, offline: '오프라인이에요. 다음에 열 때 올려요', error: `동기화하지 못했어요. ${s.msg}`, idle: '연결돼 있어요' }[s.status] ?? '';
   return `
   ${navBar('#/all')}
-  ${pageTitle('설정', 'settings', 'gray')}
-  ${groupHead('동기화', { blue: true })}
-  ${c ? `<p class="row-sub lead">${esc(line)}</p>
-    <div class="stack">
+  ${pageTitle('설정')}
+  ${card(`${groupHead(c ? esc(line) : '연결 전이에요', { eyebrow: '동기화' })}
+  ${c ? `<div class="stack">
       <button class="pill wide" data-act="sync">지금 동기화</button>
       <button class="pill wide" data-act="copylink">다른 기기 연결 링크 복사</button>
       <button class="btn-text" data-act="disconnect">연결 끊기</button>
@@ -338,13 +342,13 @@ function settingsView() {
       <label class="field"><span>연결 링크 또는 토큰</span><input name="token" type="password" required autocomplete="off"></label>
       <label class="field"><span>저장소</span><input name="repo" placeholder="토큰을 넣을 때만" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
       <button class="btn-primary" type="submit">연결</button>
-    </form>`}
-  ${groupHead('백업', { blue: true })}
+    </form>`}`)}
+  ${card(`${groupHead('백업')}
   <div class="stack">
     <button class="pill wide" data-act="export">파일로 내보내기</button>
     <label class="pill wide">파일에서 가져오기<input type="file" accept="application/json,.json" hidden data-import></label>
-  </div>
-  ${installEvt ? `${groupHead('설치', { blue: true })}<div class="stack"><button class="pill wide" data-act="install">홈 화면에 추가</button></div>` : ''}`;
+  </div>`)}
+  ${installEvt ? card(`${groupHead('설치')}<div class="stack"><button class="pill wide" data-act="install">홈 화면에 추가</button></div>`) : ''}`;
 }
 
 // ── 입력 시트 ────────────────────────────────────────────
