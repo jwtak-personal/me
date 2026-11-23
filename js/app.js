@@ -1,6 +1,6 @@
-import { AREAS } from './templates.js?v=20261123e';
-import * as L from './logic.js?v=20261123e';
-import { store } from './store.js?v=20261123e';
+import { AREAS } from './templates.js?v=20261123f';
+import * as L from './logic.js?v=20261123f';
+import { store } from './store.js?v=20261123f';
 
 const app = document.getElementById('app');
 const dlg = document.getElementById('sheet');
@@ -123,25 +123,37 @@ const groupHead = (title, { eyebrow, add, right } = {}) => `<div class="card-hea
 const empty = text => `<p class="empty">${text}</p>`;
 const fab = (kind, label) => `<button class="fab" data-act="add" data-kind="${kind}" aria-label="${label}">${icon('plus', 28, 2.4)}</button>`;
 
-// 홈 맨 위 내 정보(웍스 인사 상자처럼). 이름과 생일은 공개 저장소에 두지 않고 기록의 profile 항목에서 읽는다
+// 홈 맨 위 내 정보: 이름과 하는 일, 아래에 나이, 시작한 날, 큰 날짜 D-day 칸.
+// 이름, 생일, 날짜는 공개 저장소에 두지 않고 기록의 profile 항목에서 읽는다(marks: [{ label, date }])
 const age = birth => {
   const b = L.parse(birth), n = new Date();
   return n.getFullYear() - b.getFullYear() - (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate()) ? 1 : 0);
 };
-const clockText = () => { const n = new Date(), p = x => String(x).padStart(2, '0'); return `${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`; };
+function nextBirthday(birth) {
+  const now = L.today(), y = Number(now.slice(0, 4));
+  const bd = `${y}${birth.slice(4)}`;
+  return bd >= now ? bd : `${y + 1}${birth.slice(4)}`;
+}
+const ptile = (label, value, sub = '') => `<div class="ptile"><p class="eyebrow">${esc(label)}</p><p class="ptile-v">${esc(value)}</p>${sub ? `<p class="row-sub">${esc(sub)}</p>` : ''}</div>`;
+const mdText = s => { const d = L.parse(s); return `${d.getMonth() + 1}월 ${d.getDate()}일`; };
 function profileCard() {
   const p = store.list('profile')[0];
   if (!p) return '';
-  const d = L.parse(L.today());
-  const sub = [p.birth ? `만 ${age(p.birth)}세` : '', p.role ?? ''].filter(Boolean).join(', ');
+  const now = L.today();
+  const tiles = [];
+  if (p.birth) {
+    const bd = nextBirthday(p.birth), left = L.diffDays(bd, now);
+    tiles.push(ptile('나이', `만 ${age(p.birth)}세`, left ? `생일까지 ${left}일` : '오늘 생일'));
+  }
+  if (p.since) tiles.push(ptile(p.sinceLabel ?? '시작', `${L.diffDays(now, p.since) + 1}일째`, `${mdText(p.since)}부터`));
+  for (const mk of (p.marks ?? []).filter(x => x.date >= now).sort((a, b) => (a.date < b.date ? -1 : 1)).slice(0, 4 - tiles.length)) {
+    const left = L.diffDays(mk.date, now);
+    tiles.push(ptile(mk.label, left ? `D-${left}` : 'D-day', mdText(mk.date)));
+  }
   return card(`<div class="profile-head"><span class="avatar">${esc((p.name ?? '').slice(0, 1))}</span>
-      <div><p class="profile-name">${esc(p.name)} 님</p>${sub ? `<p class="row-sub">${esc(sub)}</p>` : ''}</div></div>
-    <div class="profile-tiles">
-      <div class="ptile"><p class="eyebrow">${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})</p><p class="ptile-v today" data-clock>${clockText()}</p></div>
-      ${p.since ? `<div class="ptile"><p class="eyebrow">${esc(p.sinceLabel ?? '시작')} 후</p><p class="ptile-v">${L.diffDays(L.today(), p.since) + 1}일째</p></div>` : ''}
-    </div>`, 'summary');
+      <div><p class="profile-name">${esc(p.name)}</p>${p.role ? `<p class="row-sub">${esc(p.role)}</p>` : ''}</div></div>
+    ${tiles.length ? `<div class="profile-tiles">${tiles.join('')}</div>` : ''}`, 'summary');
 }
-setInterval(() => { const el = document.querySelector('[data-clock]'); if (el) el.textContent = clockText(); }, 1000);
 
 function syncLine() {
   const s = store.syncState();
