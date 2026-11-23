@@ -1,6 +1,6 @@
-import { AREAS } from './templates.js?v=20261123b';
-import * as L from './logic.js?v=20261123b';
-import { store } from './store.js?v=20261123b';
+import { AREAS } from './templates.js?v=20261123c';
+import * as L from './logic.js?v=20261123c';
+import { store } from './store.js?v=20261123c';
 
 const app = document.getElementById('app');
 const dlg = document.getElementById('sheet');
@@ -123,6 +123,26 @@ const groupHead = (title, { eyebrow, add, right } = {}) => `<div class="card-hea
 const empty = text => `<p class="empty">${text}</p>`;
 const fab = (kind, label) => `<button class="fab" data-act="add" data-kind="${kind}" aria-label="${label}">${icon('plus', 28, 2.4)}</button>`;
 
+// 홈 맨 위 내 정보(웍스 인사 상자처럼). 이름과 생일은 공개 저장소에 두지 않고 기록의 profile 항목에서 읽는다
+const age = birth => {
+  const b = L.parse(birth), n = new Date();
+  return n.getFullYear() - b.getFullYear() - (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate()) ? 1 : 0);
+};
+const clockText = () => { const n = new Date(), p = x => String(x).padStart(2, '0'); return `${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`; };
+function profileCard() {
+  const p = store.list('profile')[0];
+  if (!p) return '';
+  const d = L.parse(L.today());
+  const sub = [p.birth ? `만 ${age(p.birth)}세` : '', p.role ?? ''].filter(Boolean).join(', ');
+  return card(`<div class="profile-head"><span class="avatar">${esc((p.name ?? '').slice(0, 1))}</span>
+      <div><p class="profile-name">${esc(p.name)} 님</p>${sub ? `<p class="row-sub">${esc(sub)}</p>` : ''}</div></div>
+    <div class="profile-tiles">
+      <div class="ptile"><p class="eyebrow">${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})</p><p class="ptile-v today" data-clock>${clockText()}</p></div>
+      ${p.since ? `<div class="ptile"><p class="eyebrow">${esc(p.sinceLabel ?? '시작')} 후</p><p class="ptile-v">${L.diffDays(L.today(), p.since) + 1}일째</p></div>` : ''}
+    </div>`, 'summary');
+}
+setInterval(() => { const el = document.querySelector('[data-clock]'); if (el) el.textContent = clockText(); }, 1000);
+
 function syncLine() {
   const s = store.syncState();
   const text = { syncing: '동기화하는 중', offline: '오프라인이에요. 다음에 열 때 올려요', error: `동기화 실패. ${s.msg}` }[s.status];
@@ -209,7 +229,8 @@ function homeView() {
   const more = soonGroups.reduce((t, g) => t + g.items.length, 0) - shownGroups.reduce((t, g) => t + g.items.length, 0);
   const tips = openTips();
   return `
-  ${pageTitle('홈', '', '', L.dateText(now))}
+  ${pageTitle('홈', '', '', store.list('profile').length ? '' : L.dateText(now))}
+  ${profileCard()}
   ${card(`${calendar(sel, ahead)}
     <div class="day-bar"><h2>${md(sel)}${sel === now ? ' 오늘' : ''}</h2>
       ${sel >= now ? `<button class="chip" data-act="add" data-kind="event" data-date="${sel}">${icon('plus', 18, 2.2)}일정</button>` : ''}</div>
