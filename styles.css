@@ -275,7 +275,7 @@ b { font-weight: 600; }
 /* 아래 탭 */
 .tabbar {
   position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 6;
-  display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; max-width: 560px;
+  display: grid; grid-template-columns: repeat(2, 1fr); width: 100%; max-width: 560px;
   padding-bottom: env(safe-area-inset-bottom); background: rgba(255, 255, 255, 0.96);
   -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-top: 1px solid var(--line);
 }

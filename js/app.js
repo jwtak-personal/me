@@ -1,6 +1,6 @@
-import { AREAS } from './templates.js?v=20261123f';
-import * as L from './logic.js?v=20261123f';
-import { store } from './store.js?v=20261123f';
+import { AREAS } from './templates.js?v=20261124a';
+import * as L from './logic.js?v=20261124a';
+import { store } from './store.js?v=20261124a';
 
 const app = document.getElementById('app');
 const dlg = document.getElementById('sheet');
@@ -289,6 +289,7 @@ function logView() {
     months.at(-1).items.push(l);
   }
   return `
+  ${navBar('#/all')}
   ${pageTitle('기록')}
   ${card(`<p class="eyebrow">이번 달 쓴 돈</p><p class="display">${won(spentIn(ym))}</p><p class="row-sub">올해 ${won(spentIn(year))}</p>`, 'summary')}
   ${months.length ? months.map(m => {
@@ -397,7 +398,7 @@ function areaView(a) {
 function navView(tab) {
   const t = (href, id, name, ic) =>
     `<a href="${href}" class="${tab === id ? 'on' : ''}"${tab === id ? ' aria-current="page"' : ''}>${icon(ic, 24, 2)}<span>${name}</span></a>`;
-  return `<nav class="tabbar">${t('#/', 'home', '홈', 'home')}${t('#/log', 'log', '기록', 'logbook')}${t('#/all', 'all', '전체', 'grid')}</nav>`;
+  return `<nav class="tabbar">${t('#/', 'home', '홈', 'home')}${t('#/all', 'all', '전체', 'grid')}</nav>`;
 }
 
 // ── 설정 ─────────────────────────────────────────────────
@@ -648,13 +649,13 @@ function route() {
   const h = location.hash;
   if (h.startsWith('#/a/')) return { name: 'area', id: h.slice(4), tab: 'all' };
   const name = { '#/log': 'log', '#/all': 'all', '#/settings': 'settings', '#/tips': 'tips', '#/links': 'links' }[h] ?? 'home';
-  return { name, tab: ['settings', 'tips', 'links'].includes(name) ? 'all' : name };
+  return { name, tab: ['settings', 'tips', 'links', 'log'].includes(name) ? 'all' : name };
 }
 
 const VIEWS = { home: homeView, log: logView, all: allView, settings: settingsView, tips: tipsView, links: linksView };
 
 let lastRoute = route();
-const depth = r => (['area', 'settings', 'tips', 'links'].includes(r.name) ? 1 : 0);
+const depth = r => (['area', 'settings', 'tips', 'links', 'log'].includes(r.name) ? 1 : 0);
 
 function render(animate = false) {
   const r = route();
